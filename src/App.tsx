@@ -50,6 +50,7 @@ export default function App() {
   const [fullKeyboard, setFullKeyboard] = useState(true);
   const [onScreenSound, setOnScreenSound] = useState(true);
   const [speed, setSpeed] = useState(1);
+  const [toolbarOpen, setToolbarOpen] = useState(false);
 
   // Fetch the piano samples up front so the first note does not fall back to the plain tone.
   useEffect(() => {
@@ -217,7 +218,26 @@ export default function App() {
 
   return (
     <div className="app">
-      <header className="toolbar">
+      <button
+        className={`toolbar-toggle${toolbarOpen ? " active" : ""}`}
+        onClick={() => setToolbarOpen((o) => !o)}
+        aria-label={toolbarOpen ? "Hide toolbar" : "Show toolbar"}
+        aria-expanded={toolbarOpen}
+        title={toolbarOpen ? "Hide toolbar" : "Show toolbar"}
+      >
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+          <path
+            fill="currentColor"
+            d="M19.14 12.94a7.5 7.5 0 0 0 0-1.88l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.03 7.03 0 0 0-1.63-.94l-.36-2.54A.5.5 0 0 0 13.9 2.4h-3.84a.5.5 0 0 0-.49.42l-.36 2.54c-.59.24-1.13.56-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.67 8.88a.5.5 0 0 0 .12.64l2.03 1.58a7.5 7.5 0 0 0 0 1.88l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32c.13.22.39.3.6.22l2.39-.96c.5.38 1.04.7 1.63.94l.36 2.54c.04.24.25.42.49.42h3.84c.24 0 .45-.18.49-.42l.36-2.54c.59-.24 1.13-.56 1.63-.94l2.39.96c.22.08.47 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58ZM12 15.6a3.6 3.6 0 1 1 0-7.2 3.6 3.6 0 0 1 0 7.2Z"
+          />
+        </svg>
+      </button>
+
+      {/* Slides in from the top while open; inert while hidden so it cannot be tabbed into. */}
+      <header
+        className={`toolbar${toolbarOpen ? " open" : ""}`}
+        inert={!toolbarOpen}
+      >
         <select
           className="song-select"
           value={songId}

@@ -4,11 +4,30 @@
   --text: #e8eaf0;
   --muted: #8b90a0;
   --accent: #2dd4bf;
+  --accent-dark: #14b8a6;
+  --on-accent: #042f2e;
   --correct: #4ade80;
   --wrong: #f87171;
   --pressed: #94a3b8;
   --left-hand: #f97316;
   --left-hand-dark: #c2410c;
+  --on-left-hand: #431407;
+  --border: #262a35;
+  --control-bg: #232734;
+  --control-border: #343949;
+  --shadow: rgb(0 0 0 / 0.5);
+  --keyboard-bg-top: #1c1f27;
+  --key-outline: #0b0d12;
+  --key-white: #f4f4f5;
+  --key-black: #1b1d24;
+  --score-bg: #fafafa;
+  --score-text: #111;
+  --score-surface: #fff;
+  --score-border: #d4d4d8;
+  --score-muted: #52525b;
+  --score-accent: #0f766e;
+  --score-shadow: rgb(0 0 0 / 0.15);
+  --score-error: #b91c1c;
   font-family:
     system-ui,
     -apple-system,
@@ -38,7 +57,10 @@ body,
 }
 
 .toolbar {
-  position: relative;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
   z-index: 10;
   display: flex;
   flex-wrap: nowrap;
@@ -46,18 +68,63 @@ body,
   align-items: center;
   height: 48px;
   flex-shrink: 0;
-  padding: 0 8px;
+  /* Leave room on the right for the fixed toolbar toggle. */
+  padding: 0 56px 0 8px;
   background: var(--panel);
-  border-bottom: 1px solid #262a35;
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 4px 16px var(--shadow);
   font-size: 14px;
+  transform: translateY(-100%);
+  visibility: hidden;
+  transition:
+    transform 220ms ease,
+    visibility 0s linear 220ms;
+}
+
+.toolbar.open {
+  transform: translateY(0);
+  visibility: visible;
+  transition:
+    transform 220ms ease,
+    visibility 0s;
+}
+
+.toolbar-toggle {
+  position: fixed;
+  top: 6px;
+  right: 8px;
+  z-index: 11;
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 36px;
+  padding: 0;
+  color: var(--text);
+  background: color-mix(in srgb, var(--control-bg) 85%, transparent);
+  border: 1px solid var(--control-border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.toolbar-toggle.active {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toolbar,
+  .toolbar.open {
+    transition: none;
+  }
 }
 
 .toolbar select,
 .toolbar button {
   font: inherit;
   color: var(--text);
-  background: #232734;
-  border: 1px solid #343949;
+  background: var(--control-bg);
+  border: 1px solid var(--control-border);
   border-radius: 6px;
   height: 36px;
   padding: 0 10px;
@@ -71,7 +138,7 @@ body,
 
 .toolbar button.active {
   background: var(--accent);
-  color: #042f2e;
+  color: var(--on-accent);
   border-color: var(--accent);
   font-weight: 600;
 }
@@ -103,7 +170,7 @@ body,
 .toolbar .hand-button.hand-L.active {
   background: var(--left-hand);
   border-color: var(--left-hand);
-  color: #431407;
+  color: var(--on-left-hand);
 }
 
 .settings {
@@ -123,9 +190,9 @@ body,
   overflow-y: auto;
   padding: 12px;
   background: var(--panel);
-  border: 1px solid #343949;
+  border: 1px solid var(--control-border);
   border-radius: 10px;
-  box-shadow: 0 8px 24px rgb(0 0 0 / 0.5);
+  box-shadow: 0 8px 24px var(--shadow);
 }
 
 .settings-row {
@@ -149,8 +216,8 @@ body,
 }
 
 .keyboard-area {
-  background: linear-gradient(#1c1f27, #0f1115);
-  padding: 8px 12px 4px;
+  background: linear-gradient(var(--keyboard-bg-top), var(--bg));
+  padding: 4px 12px 4px;
 }
 
 .keyboard {
@@ -162,17 +229,17 @@ body,
 }
 
 .key {
-  stroke: #0b0d12;
+  stroke: var(--key-outline);
   stroke-width: 1;
   transition: fill 60ms;
 }
 
 .key.white {
-  fill: #f4f4f5;
+  fill: var(--key-white);
 }
 
 .key.black {
-  fill: #1b1d24;
+  fill: var(--key-black);
 }
 
 .key.expected {
@@ -180,7 +247,7 @@ body,
 }
 
 .key.black.expected {
-  fill: #14b8a6;
+  fill: var(--accent-dark);
 }
 
 .key.expected.hand-L {
@@ -232,8 +299,8 @@ body,
 .score-area {
   flex: 1;
   overflow: auto;
-  background: #fafafa;
-  color: #111;
+  background: var(--score-bg);
+  color: var(--score-text);
   color-scheme: light;
 }
 
@@ -241,9 +308,62 @@ body,
   padding: 8px 16px;
 }
 
+/* Zero-height sticky bar so the info button floats over the score without
+   taking vertical space, and stays visible while scrolling. */
+.score-info {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  padding-right: 8px;
+}
+
+.score-info-button {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  min-height: 24px;
+  margin-top: 8px;
+  padding: 0;
+  border-radius: 24px;
+  border: 1px solid var(--score-border);
+  background: color-mix(in srgb, var(--score-surface) 85%, transparent);
+  color: var(--score-muted);
+}
+
+.score-info-button.active {
+  color: var(--score-accent);
+  border-color: var(--score-accent);
+}
+
+.score-info-panel {
+  margin-top: 6px;
+  max-width: min(360px, calc(100vw - 32px));
+  padding: 12px 14px;
+  background: var(--score-surface);
+  border: 1px solid var(--score-border);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px var(--score-shadow);
+}
+
+.score-info-panel h2 {
+  margin: 0 0 4px;
+  font-size: 1.05rem;
+}
+
+.score-info-panel p {
+  margin: 2px 0 0;
+  color: var(--score-muted);
+  font-size: 0.9rem;
+}
+
 .error {
   margin: 12px 16px;
-  color: #b91c1c;
+  color: var(--score-error);
 }
 
 @media (max-width: 640px) {

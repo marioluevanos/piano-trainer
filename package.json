@@ -8,6 +8,7 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host",
     "test": "node --test --experimental-strip-types src/engine/*.test.ts",
+    "deploy": "firebase deploy --only hosting",
     "icons": "pwa-assets-generator"
   },
   "dependencies": {
