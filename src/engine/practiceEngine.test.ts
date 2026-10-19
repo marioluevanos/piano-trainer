@@ -1,6 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { initialState, jumpTo, noteOff, noteOn } from "./practiceEngine.ts";
+import {
+  CHORD_WINDOW_MS,
+  initialState,
+  jumpTo,
+  noteOff,
+  noteOn,
+} from "./practiceEngine.ts";
 import type { Step } from "./types.ts";
 
 // Two measures: m0 = C4 (R) + C3 (L), then E4 (R); m1 = G4 (R) + G3 (L), then rest.
@@ -88,4 +94,16 @@ test("piece finishes without a loop", () => {
   // Further notes are ignored once finished.
   s = noteOn(s, steps, 60, opts);
   assert.ok(s.finished);
+});
+
+test("chord notes must be struck together", () => {
+  const opts = { handMode: "both" as const, loop: null };
+  let s = initialState();
+  s = noteOn(s, steps, 60, opts, 0);
+  s = noteOn(s, steps, 48, opts, CHORD_WINDOW_MS + 1);
+  assert.equal(s.stepIndex, 0, "too far apart: the chord starts over");
+  assert.deepEqual([...s.hits], [48]);
+  s = noteOff(s, 60);
+  s = noteOn(s, steps, 60, opts, CHORD_WINDOW_MS + 50);
+  assert.equal(s.stepIndex, 1, "both notes within the window");
 });

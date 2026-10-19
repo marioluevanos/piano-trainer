@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Keyboard, noteName } from "./components/Keyboard";
 import { ScoreView, type ScoreInfo } from "./components/ScoreView";
+import { SettingsMenu } from "./components/SettingsMenu";
 import {
   expectedMidi,
   expectedNotes,
@@ -15,12 +16,20 @@ import { useMidiInput } from "./midi/useMidiInput";
 import { usePlayback } from "./midi/usePlayback";
 import { loadPiano, synthNoteOff, synthNoteOn } from "./midi/synth";
 import { songSource } from "./songs";
-import { useSongLibrary } from "./songs/library";
+import {
+  loadSelectedSongId,
+  saveSelectedSongId,
+  useSongLibrary,
+} from "./songs/library";
 
 export default function App() {
   const library = useSongLibrary();
-  const [songId, setSongId] = useState(library.songs[0].id);
+  const [songId, setSongId] = useState(
+    () => loadSelectedSongId() ?? library.songs[0].id,
+  );
+  // Falls back to the first song if the remembered one was removed.
   const song = library.songs.find((s) => s.id === songId) ?? library.songs[0];
+  useEffect(() => saveSelectedSongId(song.id), [song.id]);
   const source = useMemo(() => songSource(song), [song]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -38,7 +47,7 @@ export default function App() {
 
   const [handMode, setHandMode] = useState<HandMode>("both");
   const [loop, setLoop] = useState<LoopRange | null>(null);
-  const [fullKeyboard, setFullKeyboard] = useState(false);
+  const [fullKeyboard, setFullKeyboard] = useState(true);
   const [onScreenSound, setOnScreenSound] = useState(true);
   const [speed, setSpeed] = useState(1);
 
@@ -71,7 +80,10 @@ export default function App() {
 
   const handleNoteOn = useCallback((midi: number) => {
     if (playingRef.current) return;
-    setEngine((s) => engineNoteOn(s, stepsRef.current, midi, optsRef.current));
+    const time = performance.now();
+    setEngine((s) =>
+      engineNoteOn(s, stepsRef.current, midi, optsRef.current, time),
+    );
   }, []);
   const handleNoteOff = useCallback((midi: number) => {
     setEngine((s) => engineNoteOff(s, midi));
@@ -107,8 +119,12 @@ export default function App() {
   const keyStates = useMemo(() => {
     const m = new Map<number, KeyState>();
     for (const n of expected) m.set(n, "expected");
+    // A held note that fell out of the chord window stays "expected" until it is struck again.
     for (const n of engine.held)
-      m.set(n, expected.has(n) ? "correct" : "pressed");
+      m.set(
+        n,
+        engine.hits.has(n) ? "correct" : expected.has(n) ? "expected" : "pressed",
+      );
     for (const n of engine.misses) m.set(n, "wrong");
     for (const n of engine.hits) if (!engine.held.has(n)) m.set(n, "correct");
     return m;
@@ -188,166 +204,197 @@ export default function App() {
     if (playback.playing) startPlayback(value);
   };
 
+  // Left and right are independent toggles; at least one hand always stays selected.
+  const leftOn = handMode !== "right";
+  const rightOn = handMode !== "left";
+  const toggleHand = (hand: "left" | "right") => {
+    const left = hand === "left" ? !leftOn : leftOn;
+    const right = hand === "right" ? !rightOn : rightOn;
+    if (left && right) setHandMode("both");
+    else if (left) setHandMode("left");
+    else if (right) setHandMode("right");
+  };
+
   return (
     <div className="app">
       <header className="toolbar">
-        <div className="group" role="group" aria-label="Song">
-          <select
-            value={songId}
-            onChange={(e) => setSongId(e.target.value)}
-            aria-label="Song"
-          >
-            {library.songs.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.title}
-              </option>
-            ))}
-          </select>
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            title="Load a .musicxml, .xml or .mxl file"
-          >
-            Load song…
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".musicxml,.xml,.mxl,application/vnd.recordare.musicxml+xml,application/vnd.recordare.musicxml"
-            hidden
-            onChange={onPickFile}
-          />
-          {song.user && (
-            <button
-              onClick={() => {
-                library.removeSong(song.id);
-                setSongId(library.songs[0].id);
-              }}
-              title="Remove this song from the library"
-            >
-              Remove
-            </button>
-          )}
-        </div>
-
-        <div className="group" role="group" aria-label="Hand">
-          {(["left", "both", "right"] as HandMode[]).map((h) => (
-            <button
-              key={h}
-              className={handMode === h ? "active" : ""}
-              onClick={() => setHandMode(h)}
-            >
-              {h === "left"
-                ? "Left hand"
-                : h === "right"
-                  ? "Right hand"
-                  : "Both hands"}
-            </button>
+        <select
+          className="song-select"
+          value={songId}
+          onChange={(e) => setSongId(e.target.value)}
+          aria-label="Song"
+        >
+          {library.songs.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.title}
+            </option>
           ))}
-        </div>
+        </select>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".musicxml,.xml,.mxl,application/vnd.recordare.musicxml+xml,application/vnd.recordare.musicxml"
+          hidden
+          onChange={onPickFile}
+        />
 
-        <div className="group" role="group" aria-label="Loop">
-          <label>
-            Loop
-            <select
-              value={loop ? loop.startMeasure : ""}
-              onChange={(e) =>
-                setLoop({
-                  startMeasure: Number(e.target.value),
-                  endMeasure: Math.max(
-                    Number(e.target.value),
-                    loop?.endMeasure ?? Number(e.target.value),
-                  ),
-                })
-              }
-            >
-              <option value="">off</option>
-              {measureOptions.map((i) => (
-                <option key={i} value={i}>
-                  m. {i + 1}
-                </option>
-              ))}
-            </select>
-            →
-            <select
-              value={loop ? loop.endMeasure : ""}
-              disabled={!loop}
-              onChange={(e) =>
-                setLoop((l) =>
-                  l
-                    ? {
-                        ...l,
-                        endMeasure: Math.max(
-                          l.startMeasure,
-                          Number(e.target.value),
-                        ),
-                      }
-                    : l,
-                )
-              }
-            >
-              <option value="">—</option>
-              {measureOptions.map((i) => (
-                <option key={i} value={i}>
-                  m. {i + 1}
-                </option>
-              ))}
-            </select>
-          </label>
+        <div className="toolbar-actions">
           <button
-            onClick={() => setLoopFromHere("start")}
-            title="Set loop start to the current measure"
-          >
-            Start here
-          </button>
-          <button
-            onClick={() => setLoopFromHere("end")}
-            title="Set loop end to the current measure"
-          >
-            End here
-          </button>
-          {loop && <button onClick={() => setLoop(null)}>Clear</button>}
-        </div>
-
-        <div className="group" role="group" aria-label="Playback">
-          <button
-            className={playback.playing ? "active" : ""}
+            className={`icon-button${playback.playing ? " active" : ""}`}
             onClick={togglePlayback}
             disabled={steps.length === 0}
+            aria-label={playback.playing ? "Stop" : "Play"}
             title="Play the song from the cursor (the selected hands only)"
           >
-            {playback.playing ? "■ Stop" : "▶ Play"}
+            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+              <path
+                fill="currentColor"
+                d={playback.playing ? "M6 6h12v12H6z" : "M8 5v14l11-7z"}
+              />
+            </svg>
           </button>
-          <select
-            value={speed}
-            onChange={(e) => changeSpeed(Number(e.target.value))}
-            aria-label="Playback speed"
+          <button
+            className={`hand-button hand-L${leftOn ? " active" : ""}`}
+            onClick={() => toggleHand("left")}
+            aria-pressed={leftOn}
+            aria-label="Left hand"
+            title="Left hand"
           >
-            {[0.5, 0.75, 1, 1.25].map((v) => (
-              <option key={v} value={v}>
-                {v * 100}%
-              </option>
-            ))}
-          </select>
+            L
+          </button>
+          <button
+            className={`hand-button hand-R${rightOn ? " active" : ""}`}
+            onClick={() => toggleHand("right")}
+            aria-pressed={rightOn}
+            aria-label="Right hand"
+            title="Right hand"
+          >
+            R
+          </button>
+
+          <SettingsMenu>
+            <div className="settings-row">
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                title="Load a .musicxml, .xml or .mxl file"
+              >
+                Load song…
+              </button>
+              {song.user && (
+                <button
+                  onClick={() => {
+                    library.removeSong(song.id);
+                    setSongId(library.songs[0].id);
+                  }}
+                  title="Remove this song from the library"
+                >
+                  Remove song
+                </button>
+              )}
+              <button onClick={restart}>Restart</button>
+            </div>
+
+            <div className="settings-row">
+              <label>
+                Loop
+                <select
+                  value={loop ? loop.startMeasure : ""}
+                  onChange={(e) =>
+                    setLoop({
+                      startMeasure: Number(e.target.value),
+                      endMeasure: Math.max(
+                        Number(e.target.value),
+                        loop?.endMeasure ?? Number(e.target.value),
+                      ),
+                    })
+                  }
+                >
+                  <option value="">off</option>
+                  {measureOptions.map((i) => (
+                    <option key={i} value={i}>
+                      m. {i + 1}
+                    </option>
+                  ))}
+                </select>
+                →
+                <select
+                  value={loop ? loop.endMeasure : ""}
+                  disabled={!loop}
+                  onChange={(e) =>
+                    setLoop((l) =>
+                      l
+                        ? {
+                            ...l,
+                            endMeasure: Math.max(
+                              l.startMeasure,
+                              Number(e.target.value),
+                            ),
+                          }
+                        : l,
+                    )
+                  }
+                >
+                  <option value="">—</option>
+                  {measureOptions.map((i) => (
+                    <option key={i} value={i}>
+                      m. {i + 1}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <div className="settings-row">
+              <button
+                onClick={() => setLoopFromHere("start")}
+                title="Set loop start to the current measure"
+              >
+                Start here
+              </button>
+              <button
+                onClick={() => setLoopFromHere("end")}
+                title="Set loop end to the current measure"
+              >
+                End here
+              </button>
+              {loop && <button onClick={() => setLoop(null)}>Clear</button>}
+            </div>
+
+            <div className="settings-row">
+              <label>
+                Speed
+                <select
+                  value={speed}
+                  onChange={(e) => changeSpeed(Number(e.target.value))}
+                >
+                  {[0.5, 0.75, 1, 1.25].map((v) => (
+                    <option key={v} value={v}>
+                      {v * 100}%
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            <div className="settings-row">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={fullKeyboard}
+                  onChange={(e) => setFullKeyboard(e.target.checked)}
+                />
+                88 keys
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={onScreenSound}
+                  onChange={(e) => setOnScreenSound(e.target.checked)}
+                />
+                Sound
+              </label>
+            </div>
+          </SettingsMenu>
         </div>
-
-        <button onClick={restart}>Restart</button>
-
-        <label className="toggle">
-          <input
-            type="checkbox"
-            checked={fullKeyboard}
-            onChange={(e) => setFullKeyboard(e.target.checked)}
-          />
-          88 keys
-        </label>
-        <label className="toggle">
-          <input
-            type="checkbox"
-            checked={onScreenSound}
-            onChange={(e) => setOnScreenSound(e.target.checked)}
-          />
-          Sound
-        </label>
       </header>
 
       <section className="keyboard-area">

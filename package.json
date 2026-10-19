@@ -7,7 +7,8 @@
     "dev": "vite --host",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host",
-    "test": "node --test --experimental-strip-types src/engine/*.test.ts"
+    "test": "node --test --experimental-strip-types src/engine/*.test.ts",
+    "icons": "pwa-assets-generator"
   },
   "dependencies": {
     "opensheetmusicdisplay": "^2.2.1",
@@ -18,8 +19,10 @@
     "@types/node": "^26.6.5",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "@vite-pwa/assets-generator": "^2.0.0",
     "@vitejs/plugin-react": "^6.1.2",
     "typescript": "^7.0.2",
-    "vite": "^8.3.4"
+    "vite": "^8.3.4",
+    "vite-plugin-pwa": "^2.0.0"
   }
 }

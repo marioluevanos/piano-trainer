@@ -1,10 +1,18 @@
 import type { HandMode, LoopRange, Step, StepNote } from "./types";
 
+/**
+ * The notes of a chord must all be struck within this many milliseconds of the
+ * first one. A note that arrives later starts the chord over.
+ */
+export const CHORD_WINDOW_MS = 150;
+
 export interface EngineState {
   /** Index into `steps` of the slice the player must play next. */
   stepIndex: number;
   /** Notes the player has struck since arriving at the current step. */
   hits: ReadonlySet<number>;
+  /** When the first of `hits` was struck, in ms; null while `hits` is empty. */
+  chordStart: number | null;
   /** Wrong notes struck at the current step (cleared on advance). */
   misses: ReadonlySet<number>;
   /** Notes physically held down right now (for drawing the keyboard). */
@@ -24,6 +32,7 @@ export function initialState(stepIndex = 0): EngineState {
   return {
     stepIndex,
     hits: new Set(),
+    chordStart: null,
     misses: new Set(),
     held: new Set(),
     finished: false,
@@ -113,11 +122,13 @@ export function jumpTo(
   return { ...s, finished: target < 0 && steps.length > 0 };
 }
 
+/** `time` is when the note was struck, in ms (e.g. `performance.now()`). */
 export function noteOn(
   state: EngineState,
   steps: Step[],
   midi: number,
   opts: EngineOptions,
+  time = 0,
 ): EngineState {
   const held = new Set(state.held);
   held.add(midi);
@@ -132,12 +143,16 @@ export function noteOn(
     return { ...state, held, misses, wrongNotes: state.wrongNotes + 1 };
   }
 
-  const hits = new Set(state.hits);
+  // Notes struck too long before this one were not played together, so the chord starts over.
+  const together =
+    state.chordStart !== null && time - state.chordStart <= CHORD_WINDOW_MS;
+  const hits = new Set(together ? state.hits : []);
   hits.add(midi);
+  const chordStart = together ? state.chordStart : time;
 
-  // Wait mode: advance only once every expected note of this slice has been struck.
+  // Wait mode: advance only once every expected note of this slice has been struck together.
   const complete = [...expected].every((m) => hits.has(m));
-  if (!complete) return { ...state, held, hits };
+  if (!complete) return { ...state, held, hits, chordStart };
 
   const rawNext = nextStepIndex(steps, state.stepIndex, opts.loop);
   const next = rawNext < 0 ? -1 : skipEmptySteps(steps, rawNext, opts);
@@ -146,6 +161,7 @@ export function noteOn(
       ...state,
       held,
       hits,
+      chordStart,
       finished: true,
       completedSteps: state.completedSteps + 1,
     };
@@ -153,6 +169,7 @@ export function noteOn(
   return {
     stepIndex: next,
     hits: new Set(),
+    chordStart: null,
     misses: new Set(),
     held,
     finished: false,

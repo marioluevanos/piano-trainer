@@ -2,6 +2,24 @@ import { useCallback, useEffect, useState } from "react";
 import { BUNDLED_SONGS, type Song } from "./index";
 
 const STORAGE_KEY = "piano-trainer.songs.v1";
+const SELECTED_KEY = "piano-trainer.selected-song.v1";
+
+/** The id of the song selected last time, if any. */
+export function loadSelectedSongId(): string | null {
+  try {
+    return localStorage.getItem(SELECTED_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function saveSelectedSongId(id: string) {
+  try {
+    localStorage.setItem(SELECTED_KEY, id);
+  } catch {
+    // Not remembering the selection is harmless.
+  }
+}
 
 function loadUserSongs(): Song[] {
   try {
