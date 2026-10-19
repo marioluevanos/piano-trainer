@@ -13,7 +13,7 @@ import {
 import type { Hand, HandMode, KeyState, LoopRange, Step } from "./engine/types";
 import { useMidiInput } from "./midi/useMidiInput";
 import { usePlayback } from "./midi/usePlayback";
-import { synthNoteOff, synthNoteOn } from "./midi/synth";
+import { loadPiano, synthNoteOff, synthNoteOn } from "./midi/synth";
 import { songSource } from "./songs";
 import { useSongLibrary } from "./songs/library";
 
@@ -41,6 +41,11 @@ export default function App() {
   const [fullKeyboard, setFullKeyboard] = useState(false);
   const [onScreenSound, setOnScreenSound] = useState(true);
   const [speed, setSpeed] = useState(1);
+
+  // Fetch the piano samples up front so the first note does not fall back to the plain tone.
+  useEffect(() => {
+    void loadPiano();
+  }, []);
 
   const [engine, setEngine] = useState<EngineState>(() => initialState());
 

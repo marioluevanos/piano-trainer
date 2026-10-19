@@ -29,7 +29,8 @@ Data flow: MusicXML → OSMD render → `buildSteps` cursor walk → `Step[]` �
 - **Engine files run directly under Node.** Tests use `--experimental-strip-types`, not Vite. Runtime imports inside `src/engine/` must include the `.ts` extension (as the test file does), and type-only imports must use `import type` so they are erased. Do not import browser or Vite-only modules into the engine.
 - **App wiring.** [src/App.tsx](src/App.tsx) owns all state. MIDI callbacks read steps and options through refs so they never see stale closures. The engine is reset via `jumpTo` whenever steps, hand mode or loop change. Key states (`expected`, `correct`, `wrong`, `pressed`) are derived from engine state in a memo.
 - **Songs.** Bundled songs are `.musicxml` files in `src/songs/` imported with Vite's `?raw` suffix and registered in `BUNDLED_SONGS` in [src/songs/index.ts](src/songs/index.ts). User-imported songs are stored in localStorage under `piano-trainer.songs.v1` by [src/songs/library.ts](src/songs/library.ts). Compressed `.mxl` files are stored as base64 and handed to OSMD as a Blob.
-- **MIDI and sound.** `useMidiInput` subscribes to all Web MIDI inputs and re-attaches on device changes. `synth.ts` is a throwaway Web Audio voice used only for on-screen key taps.
+- **MIDI and sound.** `useMidiInput` subscribes to all Web MIDI inputs and re-attaches on device changes. `synth.ts` plays the Salamander Grand Piano samples in `public/piano/` (one every three semitones, pitch-shifted), falling back to a triangle tone until they load. It serves on-screen key taps and song playback.
+- **Playback.** [src/engine/playback.ts](src/engine/playback.ts) is a pure planner that turns `Step[]` (each step carries `bpm`, each note a `duration` in whole notes) into timed events for the hand mode and loop. `usePlayback` schedules them ahead on the audio clock and moves the engine cursor via `jumpTo`; player input is ignored while it runs.
 
 ## Constraints
 
