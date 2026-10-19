@@ -7,6 +7,8 @@ export interface StepNote {
   /** MIDI note number, 21 (A0) .. 108 (C8). */
   midi: number;
   hand: Hand;
+  /** How long the note sounds, in whole notes (tied notes included). */
+  duration: number;
 }
 
 /**
@@ -17,8 +19,10 @@ export interface Step {
   index: number;
   /** 0-based measure index. */
   measure: number;
-  /** Position in whole notes from the start of the piece (for display/debug). */
+  /** Position in whole notes from the start of the piece. */
   timestamp: number;
+  /** Tempo at this step, in quarter notes per minute. */
+  bpm: number;
   notes: StepNote[];
 }
 

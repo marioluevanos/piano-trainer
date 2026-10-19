@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 
-export type MidiStatus = "unsupported" | "requesting" | "ready" | "denied" | "error";
+export type MidiStatus =
+  | "unsupported"
+  | "requesting"
+  | "ready"
+  | "denied"
+  | "error";
 
 export interface MidiInputInfo {
   id: string;
@@ -21,7 +26,9 @@ export function useMidiInput(handlers: MidiHandlers) {
   handlersRef.current = handlers;
 
   const [status, setStatus] = useState<MidiStatus>(
-    typeof navigator !== "undefined" && "requestMIDIAccess" in navigator ? "requesting" : "unsupported",
+    typeof navigator !== "undefined" && "requestMIDIAccess" in navigator
+      ? "requesting"
+      : "unsupported",
   );
   const [inputs, setInputs] = useState<MidiInputInfo[]>([]);
 
@@ -37,7 +44,8 @@ export function useMidiInput(handlers: MidiHandlers) {
       const note = data[1];
       const vel = data[2];
       if (cmd === 0x90 && vel > 0) handlersRef.current.onNoteOn(note, vel);
-      else if (cmd === 0x80 || (cmd === 0x90 && vel === 0)) handlersRef.current.onNoteOff(note);
+      else if (cmd === 0x80 || (cmd === 0x90 && vel === 0))
+        handlersRef.current.onNoteOff(note);
     };
 
     const attach = () => {
@@ -62,7 +70,11 @@ export function useMidiInput(handlers: MidiHandlers) {
       .catch((err: unknown) => {
         if (cancelled) return;
         const name = err instanceof Error ? err.name : "";
-        setStatus(name === "SecurityError" || name === "NotAllowedError" ? "denied" : "error");
+        setStatus(
+          name === "SecurityError" || name === "NotAllowedError"
+            ? "denied"
+            : "error",
+        );
       });
 
     return () => {

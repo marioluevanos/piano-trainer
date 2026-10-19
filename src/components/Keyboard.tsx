@@ -8,8 +8,34 @@ const WHITE_H = 120;
 const BLACK_W = 14;
 const BLACK_H = 76;
 
-const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
-const FLAT_NAMES = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"];
+const NOTE_NAMES = [
+  "C",
+  "C#",
+  "D",
+  "D#",
+  "E",
+  "F",
+  "F#",
+  "G",
+  "G#",
+  "A",
+  "A#",
+  "B",
+];
+const FLAT_NAMES = [
+  "C",
+  "Db",
+  "D",
+  "Eb",
+  "E",
+  "F",
+  "Gb",
+  "G",
+  "Ab",
+  "A",
+  "Bb",
+  "B",
+];
 const BLACK_PC = new Set([1, 3, 6, 8, 10]);
 
 export function isBlackKey(midi: number): boolean {
@@ -65,9 +91,19 @@ export interface KeyboardProps {
   range?: [number, number];
 }
 
-export function Keyboard({ keyStates, hands, labels, onNoteOn, onNoteOff, range }: KeyboardProps) {
+export function Keyboard({
+  keyStates,
+  hands,
+  labels,
+  onNoteOn,
+  onNoteOff,
+  range,
+}: KeyboardProps) {
   const [lo, hi] = range ?? [FIRST_MIDI, LAST_MIDI];
-  const visible = useMemo(() => KEYS.filter((k) => k.midi >= lo && k.midi <= hi), [lo, hi]);
+  const visible = useMemo(
+    () => KEYS.filter((k) => k.midi >= lo && k.midi <= hi),
+    [lo, hi],
+  );
   const minX = visible.length ? Math.min(...visible.map((k) => k.x)) : 0;
   const maxX = visible.length
     ? Math.max(...visible.map((k) => k.x + (k.black ? BLACK_W : WHITE_W)))

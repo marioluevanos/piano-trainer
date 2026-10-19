@@ -8,7 +8,9 @@ function loadUserSongs(): Song[] {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw) as Song[];
-    return Array.isArray(parsed) ? parsed.map((s) => ({ ...s, user: true })) : [];
+    return Array.isArray(parsed)
+      ? parsed.map((s) => ({ ...s, user: true }))
+      : [];
   } catch {
     return [];
   }
@@ -39,7 +41,9 @@ function titleFromXml(xml: string, fallback: string): string {
   const title =
     doc.querySelector("work > work-title")?.textContent?.trim() ||
     doc.querySelector("movement-title")?.textContent?.trim();
-  const composer = doc.querySelector('identification > creator[type="composer"]')?.textContent?.trim();
+  const composer = doc
+    .querySelector('identification > creator[type="composer"]')
+    ?.textContent?.trim();
   if (!title) return fallback;
   return composer ? `${title} — ${composer}` : title;
 }
@@ -51,13 +55,27 @@ export async function songFromFile(file: File): Promise<Song> {
   const isMxl = /\.mxl$/i.test(file.name) || file.type.includes("zip");
   if (isMxl) {
     const bytes = new Uint8Array(await file.arrayBuffer());
-    return { id, title: fallback, format: "mxl", data: bytesToBase64(bytes), user: true };
+    return {
+      id,
+      title: fallback,
+      format: "mxl",
+      data: bytesToBase64(bytes),
+      user: true,
+    };
   }
   const text = await file.text();
   if (!/<score-partwise|<score-timewise/.test(text)) {
-    throw new Error(`${file.name} is not a MusicXML file. Export MusicXML from MuseScore (File → Export).`);
+    throw new Error(
+      `${file.name} is not a MusicXML file. Export MusicXML from MuseScore (File → Export).`,
+    );
   }
-  return { id, title: titleFromXml(text, fallback), format: "xml", data: text, user: true };
+  return {
+    id,
+    title: titleFromXml(text, fallback),
+    format: "xml",
+    data: text,
+    user: true,
+  };
 }
 
 export function useSongLibrary() {
@@ -85,5 +103,10 @@ export function useSongLibrary() {
     setUserSongs((prev) => prev.filter((s) => s.id !== id));
   }, []);
 
-  return { songs: [...BUNDLED_SONGS, ...userSongs], addSong, removeSong, error };
+  return {
+    songs: [...BUNDLED_SONGS, ...userSongs],
+    addSong,
+    removeSong,
+    error,
+  };
 }

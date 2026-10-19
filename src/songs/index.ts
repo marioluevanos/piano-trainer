@@ -1,4 +1,5 @@
 import odeToJoy from "./ode-to-joy.musicxml?raw";
+import greatFairyFountain from "./great-fairy-fountain.musicxml?raw";
 
 export interface Song {
   id: string;
@@ -12,7 +13,18 @@ export interface Song {
 
 /** Bundled songs. Drop any .musicxml file in this folder and register it here. */
 export const BUNDLED_SONGS: Song[] = [
-  { id: "ode-to-joy", title: "Ode to Joy — Beethoven", format: "xml", data: odeToJoy },
+  {
+    id: "ode-to-joy",
+    title: "Ode to Joy — Beethoven",
+    format: "xml",
+    data: odeToJoy,
+  },
+  {
+    id: "great-fairy-fountain",
+    title: "Great Fairy Fountain — Koji Kondo",
+    format: "xml",
+    data: greatFairyFountain,
+  },
 ];
 
 /** What OSMD should load for this song: the XML text, or a Blob for a compressed .mxl. */

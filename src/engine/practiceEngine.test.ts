@@ -5,10 +5,34 @@ import type { Step } from "./types.ts";
 
 // Two measures: m0 = C4 (R) + C3 (L), then E4 (R); m1 = G4 (R) + G3 (L), then rest.
 const steps: Step[] = [
-  { index: 0, measure: 0, timestamp: 0, notes: [{ midi: 60, hand: "R" }, { midi: 48, hand: "L" }] },
-  { index: 1, measure: 0, timestamp: 0.25, notes: [{ midi: 64, hand: "R" }] },
-  { index: 2, measure: 1, timestamp: 0.5, notes: [{ midi: 67, hand: "R" }, { midi: 55, hand: "L" }] },
-  { index: 3, measure: 1, timestamp: 0.75, notes: [] },
+  {
+    index: 0,
+    measure: 0,
+    timestamp: 0,
+    bpm: 120,
+    notes: [
+      { midi: 60, hand: "R", duration: 0.25 },
+      { midi: 48, hand: "L", duration: 0.25 },
+    ],
+  },
+  {
+    index: 1,
+    measure: 0,
+    timestamp: 0.25,
+    bpm: 120,
+    notes: [{ midi: 64, hand: "R", duration: 0.25 }],
+  },
+  {
+    index: 2,
+    measure: 1,
+    timestamp: 0.5,
+    bpm: 120,
+    notes: [
+      { midi: 67, hand: "R", duration: 0.25 },
+      { midi: 55, hand: "L", duration: 0.25 },
+    ],
+  },
+  { index: 3, measure: 1, timestamp: 0.75, bpm: 120, notes: [] },
 ];
 
 test("wait mode advances only when every expected note is struck", () => {
@@ -44,7 +68,10 @@ test("hand mode filters expected notes and skips empty steps", () => {
 });
 
 test("loop wraps back to the start measure", () => {
-  const opts = { handMode: "right" as const, loop: { startMeasure: 0, endMeasure: 0 } };
+  const opts = {
+    handMode: "right" as const,
+    loop: { startMeasure: 0, endMeasure: 0 },
+  };
   let s = jumpTo(steps, 0, opts);
   s = noteOn(s, steps, 60, opts);
   s = noteOn(s, steps, 64, opts);

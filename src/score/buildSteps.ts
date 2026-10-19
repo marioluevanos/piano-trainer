@@ -7,6 +7,9 @@ import type { Hand, Step, StepNote } from "../engine/types";
  */
 const OSMD_HALFTONE_TO_MIDI = 12;
 
+/** Used when the score has no tempo marking. */
+const DEFAULT_BPM = 100;
+
 function handForNote(note: Note): Hand {
   // Staff 0 is the top (treble) staff, staff 1 the bottom (bass) staff in a piano part.
   const staffId = note.ParentStaffEntry?.ParentStaff?.idInMusicSheet ?? 0;
@@ -21,6 +24,11 @@ function isPlayable(note: Note): boolean {
   return true;
 }
 
+/** Sounding length in whole notes; a tie start lasts through all its tied notes. */
+function noteDuration(note: Note): number {
+  return note.NoteTie ? note.NoteTie.Duration.RealValue : note.Length.RealValue;
+}
+
 /**
  * Walk the OSMD cursor from start to end and record, for each cursor position,
  * every note that begins there. The cursor is reset afterwards, so the visual
@@ -33,21 +41,29 @@ export function buildSteps(osmd: OpenSheetMusicDisplay): Step[] {
   let guard = 0;
 
   while (!cursor.Iterator.EndReached) {
-    const seen = new Set<string>();
+    const seen = new Map<string, StepNote>();
     const notes: StepNote[] = [];
     for (const note of cursor.NotesUnderCursor()) {
       if (!isPlayable(note)) continue;
       const hand = handForNote(note);
       const midi = note.Pitch.getHalfTone() + OSMD_HALFTONE_TO_MIDI;
+      const duration = noteDuration(note);
       const key = `${hand}:${midi}`;
-      if (seen.has(key)) continue; // same pitch doubled across voices
-      seen.add(key);
-      notes.push({ midi, hand });
+      const doubled = seen.get(key); // same pitch doubled across voices
+      if (doubled) {
+        doubled.duration = Math.max(doubled.duration, duration);
+        continue;
+      }
+      const stepNote = { midi, hand, duration };
+      seen.set(key, stepNote);
+      notes.push(stepNote);
     }
+    const bpm = cursor.Iterator.CurrentBpm;
     steps.push({
       index: steps.length,
       measure: cursor.Iterator.CurrentMeasureIndex,
       timestamp: cursor.Iterator.currentTimeStamp.RealValue,
+      bpm: bpm > 0 ? bpm : DEFAULT_BPM,
       notes,
     });
     cursor.next();

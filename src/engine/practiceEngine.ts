@@ -33,14 +33,20 @@ export function initialState(stepIndex = 0): EngineState {
 }
 
 /** Notes of a step that the player is responsible for under the current hand mode. */
-export function expectedNotes(step: Step | undefined, handMode: HandMode): StepNote[] {
+export function expectedNotes(
+  step: Step | undefined,
+  handMode: HandMode,
+): StepNote[] {
   if (!step) return [];
   if (handMode === "both") return step.notes;
   const hand = handMode === "left" ? "L" : "R";
   return step.notes.filter((n) => n.hand === hand);
 }
 
-export function expectedMidi(step: Step | undefined, handMode: HandMode): Set<number> {
+export function expectedMidi(
+  step: Step | undefined,
+  handMode: HandMode,
+): Set<number> {
   return new Set(expectedNotes(step, handMode).map((n) => n.midi));
 }
 
@@ -55,7 +61,11 @@ export function loopStartIndex(steps: Step[], loop: LoopRange | null): number {
 }
 
 /** Index of the step that follows `from`, honoring the loop range. -1 means the piece is finished. */
-export function nextStepIndex(steps: Step[], from: number, loop: LoopRange | null): number {
+export function nextStepIndex(
+  steps: Step[],
+  from: number,
+  loop: LoopRange | null,
+): number {
   const next = from + 1;
   if (loop) {
     if (next >= steps.length || steps[next].measure > loop.endMeasure) {
@@ -77,7 +87,11 @@ export function skipEmptySteps(
 ): number {
   let i = index;
   let guard = 0;
-  while (i >= 0 && i < steps.length && expectedMidi(steps[i], opts.handMode).size === 0) {
+  while (
+    i >= 0 &&
+    i < steps.length &&
+    expectedMidi(steps[i], opts.handMode).size === 0
+  ) {
     i = nextStepIndex(steps, i, opts.loop);
     if (++guard > steps.length) return -1; // loop range with nothing to play
   }
@@ -85,8 +99,16 @@ export function skipEmptySteps(
 }
 
 /** Jump the engine to a step (e.g. after the user changes the loop or hand mode). */
-export function jumpTo(steps: Step[], index: number, opts: EngineOptions): EngineState {
-  const target = skipEmptySteps(steps, Math.max(0, Math.min(index, steps.length - 1)), opts);
+export function jumpTo(
+  steps: Step[],
+  index: number,
+  opts: EngineOptions,
+): EngineState {
+  const target = skipEmptySteps(
+    steps,
+    Math.max(0, Math.min(index, steps.length - 1)),
+    opts,
+  );
   const s = initialState(target < 0 ? 0 : target);
   return { ...s, finished: target < 0 && steps.length > 0 };
 }

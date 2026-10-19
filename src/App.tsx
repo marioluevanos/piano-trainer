@@ -12,6 +12,7 @@ import {
 } from "./engine/practiceEngine";
 import type { Hand, HandMode, KeyState, LoopRange, Step } from "./engine/types";
 import { useMidiInput } from "./midi/useMidiInput";
+import { usePlayback } from "./midi/usePlayback";
 import { synthNoteOff, synthNoteOn } from "./midi/synth";
 import { songSource } from "./songs";
 import { useSongLibrary } from "./songs/library";
@@ -39,6 +40,7 @@ export default function App() {
   const [loop, setLoop] = useState<LoopRange | null>(null);
   const [fullKeyboard, setFullKeyboard] = useState(false);
   const [onScreenSound, setOnScreenSound] = useState(true);
+  const [speed, setSpeed] = useState(1);
 
   const [engine, setEngine] = useState<EngineState>(() => initialState());
 
@@ -48,19 +50,41 @@ export default function App() {
   const stepsRef = useRef(steps);
   stepsRef.current = steps;
 
+  // While the song plays, the cursor follows playback and the player's input is not scored.
+  const playback = usePlayback({
+    onStep: (i) => setEngine(jumpTo(stepsRef.current, i, optsRef.current)),
+    onEnd: () => {
+      const { loop } = optsRef.current;
+      const steps = stepsRef.current;
+      setEngine(
+        jumpTo(steps, loop ? loopStart(steps, loop) : 0, optsRef.current),
+      );
+    },
+  });
+  const playingRef = useRef(playback.playing);
+  playingRef.current = playback.playing;
+
   const handleNoteOn = useCallback((midi: number) => {
+    if (playingRef.current) return;
     setEngine((s) => engineNoteOn(s, stepsRef.current, midi, optsRef.current));
   }, []);
   const handleNoteOff = useCallback((midi: number) => {
     setEngine((s) => engineNoteOff(s, midi));
   }, []);
 
-  const midi = useMidiInput({ onNoteOn: handleNoteOn, onNoteOff: handleNoteOff });
+  const midi = useMidiInput({
+    onNoteOn: handleNoteOn,
+    onNoteOff: handleNoteOff,
+  });
 
-  // Reset the engine whenever the song, hand mode or loop changes.
+  // Reset the engine (and stop playback) whenever the song, hand mode or loop changes.
+  const stopPlayback = playback.stop;
   useEffect(() => {
-    setEngine(jumpTo(steps, loop ? loopStart(steps, loop) : 0, { handMode, loop }));
-  }, [handMode, loop, steps]);
+    stopPlayback();
+    setEngine(
+      jumpTo(steps, loop ? loopStart(steps, loop) : 0, { handMode, loop }),
+    );
+  }, [handMode, loop, steps, stopPlayback]);
 
   const handleReady = useCallback((info: ScoreInfo) => {
     setScoreError(null);
@@ -70,12 +94,16 @@ export default function App() {
   }, []);
 
   const currentStep = steps[engine.stepIndex];
-  const expected = useMemo(() => expectedMidi(currentStep, handMode), [currentStep, handMode]);
+  const expected = useMemo(
+    () => expectedMidi(currentStep, handMode),
+    [currentStep, handMode],
+  );
 
   const keyStates = useMemo(() => {
     const m = new Map<number, KeyState>();
     for (const n of expected) m.set(n, "expected");
-    for (const n of engine.held) m.set(n, expected.has(n) ? "correct" : "pressed");
+    for (const n of engine.held)
+      m.set(n, expected.has(n) ? "correct" : "pressed");
     for (const n of engine.misses) m.set(n, "wrong");
     for (const n of engine.hits) if (!engine.held.has(n)) m.set(n, "correct");
     return m;
@@ -121,25 +149,59 @@ export default function App() {
   const setLoopFromHere = (which: "start" | "end") => {
     setLoop((l) => {
       const start = which === "start" ? currentMeasure : (l?.startMeasure ?? 0);
-      const end = which === "end" ? currentMeasure : (l?.endMeasure ?? measureCount - 1);
-      return { startMeasure: Math.min(start, end), endMeasure: Math.max(start, end) };
+      const end =
+        which === "end" ? currentMeasure : (l?.endMeasure ?? measureCount - 1);
+      return {
+        startMeasure: Math.min(start, end),
+        endMeasure: Math.max(start, end),
+      };
     });
   };
 
-  const restart = () => setEngine(jumpTo(steps, loop ? loopStart(steps, loop) : 0, { handMode, loop }));
+  const restart = () => {
+    playback.stop();
+    setEngine(
+      jumpTo(steps, loop ? loopStart(steps, loop) : 0, { handMode, loop }),
+    );
+  };
+
+  const startPlayback = (playSpeed: number) => {
+    const from = engine.finished
+      ? loop
+        ? loopStart(steps, loop)
+        : 0
+      : engine.stepIndex;
+    playback.play(steps, from, { handMode, loop, speed: playSpeed });
+  };
+
+  const togglePlayback = () =>
+    playback.playing ? playback.stop() : startPlayback(speed);
+
+  const changeSpeed = (value: number) => {
+    setSpeed(value);
+    // Pick up the new speed from the current step.
+    if (playback.playing) startPlayback(value);
+  };
 
   return (
     <div className="app">
       <header className="toolbar">
         <div className="group" role="group" aria-label="Song">
-          <select value={songId} onChange={(e) => setSongId(e.target.value)} aria-label="Song">
+          <select
+            value={songId}
+            onChange={(e) => setSongId(e.target.value)}
+            aria-label="Song"
+          >
             {library.songs.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.title}
               </option>
             ))}
           </select>
-          <button onClick={() => fileInputRef.current?.click()} title="Load a .musicxml, .xml or .mxl file">
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            title="Load a .musicxml, .xml or .mxl file"
+          >
             Load song…
           </button>
           <input
@@ -164,8 +226,16 @@ export default function App() {
 
         <div className="group" role="group" aria-label="Hand">
           {(["left", "both", "right"] as HandMode[]).map((h) => (
-            <button key={h} className={handMode === h ? "active" : ""} onClick={() => setHandMode(h)}>
-              {h === "left" ? "Left hand" : h === "right" ? "Right hand" : "Both hands"}
+            <button
+              key={h}
+              className={handMode === h ? "active" : ""}
+              onClick={() => setHandMode(h)}
+            >
+              {h === "left"
+                ? "Left hand"
+                : h === "right"
+                  ? "Right hand"
+                  : "Both hands"}
             </button>
           ))}
         </div>
@@ -178,7 +248,10 @@ export default function App() {
               onChange={(e) =>
                 setLoop({
                   startMeasure: Number(e.target.value),
-                  endMeasure: Math.max(Number(e.target.value), loop?.endMeasure ?? Number(e.target.value)),
+                  endMeasure: Math.max(
+                    Number(e.target.value),
+                    loop?.endMeasure ?? Number(e.target.value),
+                  ),
                 })
               }
             >
@@ -194,7 +267,17 @@ export default function App() {
               value={loop ? loop.endMeasure : ""}
               disabled={!loop}
               onChange={(e) =>
-                setLoop((l) => (l ? { ...l, endMeasure: Math.max(l.startMeasure, Number(e.target.value)) } : l))
+                setLoop((l) =>
+                  l
+                    ? {
+                        ...l,
+                        endMeasure: Math.max(
+                          l.startMeasure,
+                          Number(e.target.value),
+                        ),
+                      }
+                    : l,
+                )
               }
             >
               <option value="">—</option>
@@ -205,23 +288,59 @@ export default function App() {
               ))}
             </select>
           </label>
-          <button onClick={() => setLoopFromHere("start")} title="Set loop start to the current measure">
+          <button
+            onClick={() => setLoopFromHere("start")}
+            title="Set loop start to the current measure"
+          >
             Start here
           </button>
-          <button onClick={() => setLoopFromHere("end")} title="Set loop end to the current measure">
+          <button
+            onClick={() => setLoopFromHere("end")}
+            title="Set loop end to the current measure"
+          >
             End here
           </button>
           {loop && <button onClick={() => setLoop(null)}>Clear</button>}
         </div>
 
+        <div className="group" role="group" aria-label="Playback">
+          <button
+            className={playback.playing ? "active" : ""}
+            onClick={togglePlayback}
+            disabled={steps.length === 0}
+            title="Play the song from the cursor (the selected hands only)"
+          >
+            {playback.playing ? "■ Stop" : "▶ Play"}
+          </button>
+          <select
+            value={speed}
+            onChange={(e) => changeSpeed(Number(e.target.value))}
+            aria-label="Playback speed"
+          >
+            {[0.5, 0.75, 1, 1.25].map((v) => (
+              <option key={v} value={v}>
+                {v * 100}%
+              </option>
+            ))}
+          </select>
+        </div>
+
         <button onClick={restart}>Restart</button>
 
         <label className="toggle">
-          <input type="checkbox" checked={fullKeyboard} onChange={(e) => setFullKeyboard(e.target.checked)} />
+          <input
+            type="checkbox"
+            checked={fullKeyboard}
+            onChange={(e) => setFullKeyboard(e.target.checked)}
+          />
           88 keys
         </label>
         <label className="toggle">
-          <input type="checkbox" checked={onScreenSound} onChange={(e) => setOnScreenSound(e.target.checked)} />
+          <input
+            type="checkbox"
+            checked={onScreenSound}
+            onChange={(e) => setOnScreenSound(e.target.checked)}
+          />
           Sound
         </label>
       </header>
@@ -250,11 +369,13 @@ export default function App() {
                     : "MIDI error"}
           </span>
           <span>
-            {engine.finished
-              ? "Finished! 🎉"
-              : steps.length
-                ? `Measure ${currentMeasure + 1} / ${measureCount}${loop ? ` · loop ${loop.startMeasure + 1}–${loop.endMeasure + 1}` : ""}`
-                : "Loading score…"}
+            {playback.playing
+              ? "Playing…"
+              : engine.finished
+                ? "Finished! 🎉"
+                : steps.length
+                  ? `Measure ${currentMeasure + 1} / ${measureCount}${loop ? ` · loop ${loop.startMeasure + 1}–${loop.endMeasure + 1}` : ""}`
+                  : "Loading score…"}
             {" · "}
             {engine.completedSteps} played, {engine.wrongNotes} wrong
           </span>
@@ -263,7 +384,9 @@ export default function App() {
 
       <section className="score-area">
         {library.error && <p className="error">{library.error}</p>}
-        {scoreError && <p className="error">Could not load score: {scoreError}</p>}
+        {scoreError && (
+          <p className="error">Could not load score: {scoreError}</p>
+        )}
         <ScoreView
           source={source}
           cursorStep={engine.stepIndex}

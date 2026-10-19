@@ -18,7 +18,12 @@ interface ScoreViewProps {
   onError?: (message: string) => void;
 }
 
-export function ScoreView({ source, cursorStep, onReady, onError }: ScoreViewProps) {
+export function ScoreView({
+  source,
+  cursorStep,
+  onReady,
+  onError,
+}: ScoreViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const osmdRef = useRef<OpenSheetMusicDisplay | null>(null);
   const cursorPosRef = useRef(0);
@@ -60,7 +65,9 @@ export function ScoreView({ source, cursorStep, onReady, onError }: ScoreViewPro
       drawComposer: true,
       drawPartNames: false,
       followCursor: true,
-      cursorsOptions: [{ type: 0, color: "#2dd4bf", alpha: 0.45, follow: true }],
+      cursorsOptions: [
+        { type: 0, color: "#2dd4bf", alpha: 0.45, follow: true },
+      ],
     });
     osmdRef.current = osmd;
 
