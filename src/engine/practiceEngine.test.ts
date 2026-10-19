@@ -1,0 +1,64 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { initialState, jumpTo, noteOff, noteOn } from "./practiceEngine.ts";
+import type { Step } from "./types.ts";
+
+// Two measures: m0 = C4 (R) + C3 (L), then E4 (R); m1 = G4 (R) + G3 (L), then rest.
+const steps: Step[] = [
+  { index: 0, measure: 0, timestamp: 0, notes: [{ midi: 60, hand: "R" }, { midi: 48, hand: "L" }] },
+  { index: 1, measure: 0, timestamp: 0.25, notes: [{ midi: 64, hand: "R" }] },
+  { index: 2, measure: 1, timestamp: 0.5, notes: [{ midi: 67, hand: "R" }, { midi: 55, hand: "L" }] },
+  { index: 3, measure: 1, timestamp: 0.75, notes: [] },
+];
+
+test("wait mode advances only when every expected note is struck", () => {
+  const opts = { handMode: "both" as const, loop: null };
+  let s = initialState();
+  s = noteOn(s, steps, 60, opts);
+  assert.equal(s.stepIndex, 0, "still waiting for the left hand");
+  s = noteOn(s, steps, 48, opts);
+  assert.equal(s.stepIndex, 1);
+  assert.equal(s.hits.size, 0, "hits reset after advancing");
+});
+
+test("wrong notes are flagged and cleared on release", () => {
+  const opts = { handMode: "both" as const, loop: null };
+  let s = initialState();
+  s = noteOn(s, steps, 61, opts);
+  assert.equal(s.stepIndex, 0);
+  assert.ok(s.misses.has(61));
+  assert.equal(s.wrongNotes, 1);
+  s = noteOff(s, 61);
+  assert.ok(!s.misses.has(61));
+});
+
+test("hand mode filters expected notes and skips empty steps", () => {
+  const opts = { handMode: "left" as const, loop: null };
+  let s = jumpTo(steps, 0, opts);
+  assert.equal(s.stepIndex, 0);
+  s = noteOn(s, steps, 48, opts);
+  // step 1 has no left-hand notes, so we land on step 2.
+  assert.equal(s.stepIndex, 2);
+  s = noteOn(s, steps, 55, opts);
+  assert.ok(s.finished, "rest at the end is skipped and the piece finishes");
+});
+
+test("loop wraps back to the start measure", () => {
+  const opts = { handMode: "right" as const, loop: { startMeasure: 0, endMeasure: 0 } };
+  let s = jumpTo(steps, 0, opts);
+  s = noteOn(s, steps, 60, opts);
+  s = noteOn(s, steps, 64, opts);
+  assert.equal(s.stepIndex, 0, "wrapped to beginning of loop");
+  assert.ok(!s.finished);
+  assert.equal(s.completedSteps, 2);
+});
+
+test("piece finishes without a loop", () => {
+  const opts = { handMode: "right" as const, loop: null };
+  let s = jumpTo(steps, 0, opts);
+  for (const m of [60, 64, 67]) s = noteOn(s, steps, m, opts);
+  assert.ok(s.finished);
+  // Further notes are ignored once finished.
+  s = noteOn(s, steps, 60, opts);
+  assert.ok(s.finished);
+});
