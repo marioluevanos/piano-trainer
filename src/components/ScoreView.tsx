@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { OpenSheetMusicDisplay } from "opensheetmusicdisplay";
+import { OpenSheetMusicDisplay, PointF2D } from "opensheetmusicdisplay";
 import { buildSteps } from "../score/buildSteps";
 import type { Step } from "../engine/types";
 
@@ -15,6 +15,8 @@ interface ScoreViewProps {
   /** Step whose notes the cursor should highlight. */
   cursorStep: number;
   onReady: (info: ScoreInfo) => void;
+  /** Called with the source measure index when the user clicks a measure. */
+  onMeasureClick?: (measure: number) => void;
   onError?: (message: string) => void;
 }
 
@@ -22,6 +24,7 @@ export function ScoreView({
   source,
   cursorStep,
   onReady,
+  onMeasureClick,
   onError,
 }: ScoreViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -30,6 +33,8 @@ export function ScoreView({
   const readyRef = useRef(false);
   const onReadyRef = useRef(onReady);
   onReadyRef.current = onReady;
+  const onMeasureClickRef = useRef(onMeasureClick);
+  onMeasureClickRef.current = onMeasureClick;
   const onErrorRef = useRef(onError);
   onErrorRef.current = onError;
   const cursorStepRef = useRef(cursorStep);
@@ -116,6 +121,13 @@ export function ScoreView({
     };
   }, [source]);
 
+  const handleClick = (e: React.MouseEvent) => {
+    const osmd = osmdRef.current;
+    if (!osmd || !readyRef.current || !onMeasureClickRef.current) return;
+    const measure = measureAt(osmd, e.clientX, e.clientY);
+    if (measure !== null) onMeasureClickRef.current(measure);
+  };
+
   // Move the visual cursor to the requested step.
   useEffect(() => {
     syncCursor();
@@ -169,7 +181,52 @@ export function ScoreView({
           )}
         </div>
       )}
-      <div ref={containerRef} className="score" />
+      <div ref={containerRef} className="score" onClick={handleClick} />
     </>
   );
+}
+
+/** Extra hit area above and below each system, in OSMD units (10px each). */
+const SYSTEM_PADDING = 2;
+
+/**
+ * Source measure index under a click, or null. A measure spans every staff of
+ * its system, so clicks between the treble and bass staves count too.
+ */
+function measureAt(
+  osmd: OpenSheetMusicDisplay,
+  clientX: number,
+  clientY: number,
+): number | null {
+  const sheet = osmd.GraphicSheet;
+  const { x, y } = sheet.svgToOsmd(
+    sheet.domToSvg(new PointF2D(clientX, clientY)),
+  );
+  for (const staffMeasures of sheet.MeasureList) {
+    let left = Infinity;
+    let right = -Infinity;
+    let top = Infinity;
+    let bottom = -Infinity;
+    let index: number | null = null;
+    for (const gm of staffMeasures) {
+      if (!gm) continue;
+      const box = gm.PositionAndShape;
+      const pos = box.AbsolutePosition;
+      left = Math.min(left, pos.x + box.BorderLeft);
+      right = Math.max(right, pos.x + box.BorderRight);
+      top = Math.min(top, pos.y + box.BorderTop);
+      bottom = Math.max(bottom, pos.y + box.BorderBottom);
+      index = gm.parentSourceMeasure.measureListIndex;
+    }
+    if (
+      index !== null &&
+      x >= left &&
+      x <= right &&
+      y >= top - SYSTEM_PADDING &&
+      y <= bottom + SYSTEM_PADDING
+    ) {
+      return index;
+    }
+  }
+  return null;
 }

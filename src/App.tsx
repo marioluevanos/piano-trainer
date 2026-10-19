@@ -187,13 +187,20 @@ export default function App() {
     );
   };
 
-  const startPlayback = (playSpeed: number) => {
-    const from = engine.finished
-      ? loop
-        ? loopStart(steps, loop)
-        : 0
-      : engine.stepIndex;
-    playback.play(steps, from, { handMode, loop, speed: playSpeed });
+  const startPlayback = (playSpeed: number, from?: number) => {
+    const start =
+      from ??
+      (engine.finished ? (loop ? loopStart(steps, loop) : 0) : engine.stepIndex);
+    playback.play(steps, start, { handMode, loop, speed: playSpeed });
+  };
+
+  // Jump to the start of a clicked measure; playback continues from there.
+  const seekToMeasure = (measure: number) => {
+    const i = steps.findIndex((s) => s.measure >= measure);
+    if (i < 0) return;
+    const next = jumpTo(steps, i, { handMode, loop });
+    setEngine(next);
+    if (playback.playing) startPlayback(speed, next.stepIndex);
   };
 
   const togglePlayback = () =>
@@ -463,6 +470,7 @@ export default function App() {
           source={source}
           cursorStep={engine.stepIndex}
           onReady={handleReady}
+          onMeasureClick={seekToMeasure}
           onError={setScoreError}
         />
       </section>

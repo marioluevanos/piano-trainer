@@ -306,6 +306,7 @@ body,
 
 .score {
   padding: 8px 16px;
+  cursor: pointer;
 }
 
 /* Zero-height sticky bar so the info button floats over the score without
