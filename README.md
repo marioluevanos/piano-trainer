@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Piano Trainer
 
 A personal flowkey-style practice app: sheet music on the bottom, a keyboard on top, driven by a MIDI piano (or by tapping the on-screen keys).
@@ -64,3 +65,6 @@ Then build the APK from Android Studio. Two things to verify on your device befo
 - Highlight the loop range in the score.
 - A song library view with per-song progress, stored in localStorage or a small backend.
 - Replace the triangle synth with a sampled piano (e.g. Salamander samples) for nicer feedback.
+=======
+# piano-trainer
+>>>>>>> 574f6309427fdd9a675c1fb1d898617422bdd2f7
