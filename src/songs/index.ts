@@ -1,5 +1,5 @@
 import odeToJoy from "./ode-to-joy.musicxml?raw";
-import greatFairyFountain from "./great-fairy-fountain.musicxml?raw";
+import greatFairyFountainCover from "./great-fairy-fountain-cover.musicxml?raw";
 
 export interface Song {
   id: string;
@@ -20,10 +20,10 @@ export const BUNDLED_SONGS: Song[] = [
     data: odeToJoy,
   },
   {
-    id: "great-fairy-fountain",
-    title: "Great Fairy Fountain — Koji Kondo",
+    id: "great-fairy-fountain-cover",
+    title: "Great Fairy Fountain Theme — piano cover",
     format: "xml",
-    data: greatFairyFountain,
+    data: greatFairyFountainCover,
   },
 ];
 
