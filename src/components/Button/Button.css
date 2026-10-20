@@ -1,0 +1,92 @@
+/* Every button in the app. The rules sit in a cascade layer, so any unlayered
+   rule in styles.css (positioning a button in its layout) overrides them no
+   matter the selector or load order. Colors come from the tokens in :root;
+   a container can redefine those tokens to restyle the buttons inside it. */
+
+@layer button {
+  .button {
+    --button-size: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: var(--button-size);
+    padding: 0 12px;
+    font: inherit;
+    font-size: 14px;
+    color: var(--text);
+    background: var(--control-bg);
+    border: 1px solid var(--control-border);
+    border-radius: 6px;
+    cursor: pointer;
+  }
+
+  /* ---------- Sizes ---------- */
+
+  .button.xs {
+    --button-size: 24px;
+    padding: 0 8px;
+    font-size: 13px;
+    border-radius: 4px;
+  }
+
+  .button.sm {
+    --button-size: 32px;
+    padding: 0 10px;
+  }
+
+  .button.lg {
+    --button-size: 40px;
+  }
+
+  /* ---------- Shapes ---------- */
+
+  .button.icon {
+    width: var(--button-size);
+    padding: 0;
+  }
+
+  .button.round {
+    border-radius: 50%;
+  }
+
+  /* ---------- Variants ---------- */
+
+  .button.ghost,
+  .button.danger {
+    background: none;
+    border-color: transparent;
+  }
+
+  .button.danger {
+    color: var(--wrong);
+  }
+
+  .button.overlay {
+    color: var(--on-cover);
+    background: var(--cover-scrim);
+    border-color: transparent;
+  }
+
+  .button:is(.ghost, .overlay):is(:hover, :focus-visible) {
+    color: var(--text);
+    background: var(--control-bg);
+  }
+
+  .button.danger:is(:hover, :focus-visible) {
+    background: var(--control-bg);
+  }
+
+  /* Last, so a pressed toggle keeps its fill while hovered. */
+  .button.primary,
+  .button.button.active {
+    color: var(--on-accent);
+    background: var(--accent);
+    border-color: var(--accent);
+    font-weight: 600;
+  }
+
+  .button:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+}

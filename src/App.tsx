@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Button } from "./components/Button/Button";
 import { Keyboard, noteName } from "./components/Keyboard";
 import {
   ScoreView,
@@ -326,9 +327,13 @@ export default function App() {
         </svg>
         <p>Rotate your device to landscape</p>
       </div>
-      <button
+      <Button
         ref={toolbarToggleRef}
-        className={`toolbar-toggle${toolbarOpen ? " active" : ""}`}
+        className="toolbar-toggle"
+        size="lg"
+        icon
+        round
+        active={toolbarOpen}
         onClick={() => setToolbarOpen((o) => !o)}
         aria-label={toolbarOpen ? "Hide toolbar" : "Show toolbar"}
         aria-expanded={toolbarOpen}
@@ -340,7 +345,7 @@ export default function App() {
             d="M19.14 12.94a7.5 7.5 0 0 0 0-1.88l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.03 7.03 0 0 0-1.63-.94l-.36-2.54A.5.5 0 0 0 13.9 2.4h-3.84a.5.5 0 0 0-.49.42l-.36 2.54c-.59.24-1.13.56-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.67 8.88a.5.5 0 0 0 .12.64l2.03 1.58a7.5 7.5 0 0 0 0 1.88l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32c.13.22.39.3.6.22l2.39-.96c.5.38 1.04.7 1.63.94l.36 2.54c.04.24.25.42.49.42h3.84c.24 0 .45-.18.49-.42l.36-2.54c.59-.24 1.13-.56 1.63-.94l2.39.96c.22.08.47 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58ZM12 15.6a3.6 3.6 0 1 1 0-7.2 3.6 3.6 0 0 1 0 7.2Z"
           />
         </svg>
-      </button>
+      </Button>
 
       {/* Slides in from the top while open; inert while hidden so it cannot be tabbed into. */}
       <header
@@ -348,8 +353,8 @@ export default function App() {
         className={`toolbar${toolbarOpen ? " open" : ""}`}
         inert={!toolbarOpen}
       >
-        <button
-          className="icon-button"
+        <Button
+          icon
           onClick={goHome}
           aria-label="Songs"
           title="Back to the song list"
@@ -357,12 +362,13 @@ export default function App() {
           <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
             <path fill="currentColor" d="M15.4 7.4 14 6l-6 6 6 6 1.4-1.4-4.6-4.6z" />
           </svg>
-        </button>
+        </Button>
         <span className="toolbar-title">{song?.title}</span>
 
         <div className="toolbar-actions">
-          <button
-            className={`icon-button${playback.playing ? " active" : ""}`}
+          <Button
+            icon
+            active={playback.playing}
             onClick={togglePlayback}
             disabled={steps.length === 0}
             aria-label={playback.playing ? "Stop" : "Play"}
@@ -374,29 +380,33 @@ export default function App() {
                 d={playback.playing ? "M6 6h12v12H6z" : "M8 5v14l11-7z"}
               />
             </svg>
-          </button>
-          <button
-            className={`hand-button hand-L${leftOn ? " active" : ""}`}
+          </Button>
+          <Button
+            className="hand-button hand-L"
+            icon
+            active={leftOn}
             onClick={() => toggleHand("left")}
             aria-pressed={leftOn}
             aria-label="Left hand"
             title="Left hand"
           >
             L
-          </button>
-          <button
-            className={`hand-button hand-R${rightOn ? " active" : ""}`}
+          </Button>
+          <Button
+            className="hand-button"
+            icon
+            active={rightOn}
             onClick={() => toggleHand("right")}
             aria-pressed={rightOn}
             aria-label="Right hand"
             title="Right hand"
           >
             R
-          </button>
+          </Button>
 
           <SettingsMenu>
             <div className="settings-row">
-              <button onClick={restart}>Restart</button>
+              <Button onClick={restart}>Restart</Button>
             </div>
 
             <div className="settings-row">
@@ -449,19 +459,19 @@ export default function App() {
               </label>
             </div>
             <div className="settings-row">
-              <button
+              <Button
                 onClick={() => setLoopFromHere("start")}
                 title="Set loop start to the current measure"
               >
                 Start here
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={() => setLoopFromHere("end")}
                 title="Set loop end to the current measure"
               >
                 End here
-              </button>
-              {loop && <button onClick={() => setLoop(null)}>Clear</button>}
+              </Button>
+              {loop && <Button onClick={() => setLoop(null)}>Clear</Button>}
             </div>
 
             <div className="settings-row">
@@ -548,13 +558,14 @@ export default function App() {
                     ? "MIDI unavailable on this device — on-screen keys still work"
                     : `MIDI error (${midi.error})`}
           {(midi.status === "unavailable" || midi.status === "error") && (
-            <button
+            <Button
               className="status-retry"
+              size="xs"
               onClick={midi.retry}
               title={midi.error ?? undefined}
             >
               Retry
-            </button>
+            </Button>
           )}
         </span>
         <span>

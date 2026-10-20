@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { makeCover } from "../songs/cover";
 import type { SongDetails } from "../songs/library";
+import { Button } from "./Button/Button";
 
 interface Props {
   heading: string;
@@ -103,8 +104,7 @@ export function SongDialog({
               pickCover(e.dataTransfer.files[0]);
             }}
           >
-            <button
-              type="button"
+            <Button
               className="cover-pick"
               onClick={() => imageInputRef.current?.click()}
               aria-label={preview ? "Change cover image" : "Add cover image"}
@@ -120,11 +120,13 @@ export function SongDialog({
                   Add cover
                 </span>
               )}
-            </button>
+            </Button>
             {preview && (
-              <button
-                type="button"
+              <Button
                 className="cover-clear"
+                size="sm"
+                icon
+                round
                 onClick={() => setCover(null)}
                 aria-label="Remove cover image"
                 title="Remove cover image"
@@ -136,7 +138,7 @@ export function SongDialog({
                     d="m6.4 5 5.6 5.6L17.6 5 19 6.4 13.4 12l5.6 5.6-1.4 1.4-5.6-5.6L6.4 19 5 17.6l5.6-5.6L5 6.4 6.4 5Z"
                   />
                 </svg>
-              </button>
+              </Button>
             )}
           </div>
           <div className="song-dialog-fields">
@@ -156,12 +158,12 @@ export function SongDialog({
         </div>
         {error && <p className="song-dialog-error">{error}</p>}
         <div className="song-dialog-actions">
-          <button type="button" onClick={onClose} disabled={busy}>
+          <Button onClick={onClose} disabled={busy}>
             Cancel
-          </button>
-          <button type="submit" className="primary" disabled={busy || !title.trim()}>
+          </Button>
+          <Button type="submit" variant="primary" disabled={busy || !title.trim()}>
             {busy ? "Saving…" : submitLabel}
-          </button>
+          </Button>
         </div>
       </form>
       <input

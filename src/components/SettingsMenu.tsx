@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Button } from "./Button/Button";
 
 /** A sliders button that opens a popover panel holding the less frequently used controls. */
 export function SettingsMenu({ children }: { children: ReactNode }) {
@@ -24,8 +25,9 @@ export function SettingsMenu({ children }: { children: ReactNode }) {
 
   return (
     <div className="settings" ref={rootRef}>
-      <button
-        className={`icon-button${open ? " active" : ""}`}
+      <Button
+        icon
+        active={open}
         onClick={() => setOpen((o) => !o)}
         aria-label="More settings"
         aria-expanded={open}
@@ -37,7 +39,7 @@ export function SettingsMenu({ children }: { children: ReactNode }) {
             d="M3 17v2h6v-2H3ZM3 5v2h10V5H3Zm10 16v-2h8v-2h-8v-2h-2v6h2ZM7 9v2H3v2h4v2h2V9H7Zm14 4v-2H11v2h10Zm-6-4h2V7h4V5h-4V3h-2v6Z"
           />
         </svg>
-      </button>
+      </Button>
       {open && (
         <div className="settings-panel" role="dialog" aria-label="Settings">
           {children}

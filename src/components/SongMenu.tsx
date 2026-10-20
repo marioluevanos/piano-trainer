@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Button } from "./Button/Button";
 
 interface Props {
   title: string;
@@ -39,9 +40,13 @@ export function SongMenu({ title, onEdit, onRemove }: Props) {
 
   return (
     <div className={`song-menu${open ? " open" : ""}`} ref={rootRef}>
-      <button
+      <Button
         ref={buttonRef}
-        className="song-menu-button"
+        variant="overlay"
+        size="sm"
+        icon
+        round
+        active={open}
         onClick={() => setOpen((o) => !o)}
         aria-label={`More actions for ${title}`}
         aria-haspopup="menu"
@@ -54,15 +59,19 @@ export function SongMenu({ title, onEdit, onRemove }: Props) {
             d="M12 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm0 6a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm0 6a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"
           />
         </svg>
-      </button>
+      </Button>
       {open && (
         <div className="song-menu-panel" role="menu" aria-label={title}>
-          <button role="menuitem" onClick={choose(onEdit)}>
+          <Button variant="ghost" role="menuitem" onClick={choose(onEdit)}>
             Edit
-          </button>
-          <button role="menuitem" className="danger" onClick={choose(onRemove)}>
+          </Button>
+          <Button
+            variant="danger"
+            role="menuitem"
+            onClick={choose(onRemove)}
+          >
             Delete
-          </button>
+          </Button>
         </div>
       )}
     </div>

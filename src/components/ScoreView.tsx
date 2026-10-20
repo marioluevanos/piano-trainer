@@ -5,6 +5,7 @@ import {
   type GraphicalMeasure,
 } from "opensheetmusicdisplay";
 import { buildSteps } from "../score/buildSteps";
+import { Button } from "./Button/Button";
 import type { Step } from "../engine/types";
 
 /** Where a click landed on the score. */
@@ -183,8 +184,12 @@ export function ScoreView({
     <>
       {credits.length > 0 && (
         <div className="score-info" ref={infoRef}>
-          <button
-            className={`score-info-button${infoOpen ? " active" : ""}`}
+          <Button
+            className="score-info-button"
+            size="xs"
+            icon
+            round
+            active={infoOpen}
             onClick={() => setInfoOpen((o) => !o)}
             aria-label="Song info"
             aria-expanded={infoOpen}
@@ -196,7 +201,7 @@ export function ScoreView({
                 d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 15h-2v-6h2v6Zm0-8h-2V7h2v2Z"
               />
             </svg>
-          </button>
+          </Button>
           {infoOpen && (
             <div
               className="score-info-panel"

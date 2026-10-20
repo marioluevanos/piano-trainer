@@ -3,6 +3,7 @@ import type { User } from "firebase/auth";
 import type { Song } from "../songs";
 import { useCoverUrl } from "../songs/cover";
 import { readSongFile, type ImportedSong, type SongDetails } from "../songs/library";
+import { Button } from "./Button/Button";
 import { SongDialog } from "./SongDialog";
 import { SongMenu } from "./SongMenu";
 
@@ -134,7 +135,7 @@ export function HomePage({
     <ul className={`song-list ${layout}`}>
       {items.map((s) => (
         <li key={s.id} className={s.id === lastSongId ? "last" : undefined}>
-          <button className="song-open" onClick={() => onOpen(s.id)}>
+          <Button variant="ghost" className="song-open" onClick={() => onOpen(s.id)}>
             <SongCover song={s} />
             <span className="song-text">
               <span className="song-title">{s.title}</span>
@@ -142,7 +143,7 @@ export function HomePage({
                 <span className="song-badge">Last played</span>
               )}
             </span>
-          </button>
+          </Button>
           {s.user && layout === "grid" && (
             <SongMenu
               title={s.title}
@@ -151,7 +152,9 @@ export function HomePage({
             />
           )}
           {s.user && layout === "list" && (
-            <button
+            <Button
+              variant="ghost"
+              icon
               className="song-action"
               onClick={() => setEditingId(s.id)}
               aria-label={`Edit ${s.title}`}
@@ -168,11 +171,13 @@ export function HomePage({
                   d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25ZM20.7 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83Z"
                 />
               </svg>
-            </button>
+            </Button>
           )}
           {s.user && layout === "list" && (
-            <button
-              className="song-action song-remove"
+            <Button
+              variant="danger"
+              icon
+              className="song-action"
               onClick={() => remove(s)}
               aria-label={`Remove ${s.title}`}
               title="Remove this song from your songs"
@@ -188,7 +193,7 @@ export function HomePage({
                   d="M9 3v1H4v2h16V4h-5V3H9ZM6 8l1 13h10l1-13H6Zm4 2h1v9h-1v-9Zm3 0h1v9h-1v-9Z"
                 />
               </svg>
-            </button>
+            </Button>
           )}
         </li>
       ))}
@@ -209,20 +214,20 @@ export function HomePage({
                 <span className="account">
                   {user.displayName ?? user.email}
                 </span>
-                <button
+                <Button
                   onClick={onSignOut}
                   title="Your songs stay in your account"
                 >
                   Sign out
-                </button>
+                </Button>
               </>
             ) : (
-              <button
+              <Button
                 onClick={onSignIn}
                 title="Keep the songs you load in your Google account, on every device"
               >
                 Sign in to sync songs
-              </button>
+              </Button>
             )}
           </div>
         )}
@@ -239,7 +244,11 @@ export function HomePage({
                 <h2>Your songs</h2>
                 <div className="home-section-tools">
                   <div className="layout-toggle" role="group" aria-label="Song layout">
-                    <button
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      icon
+                      active={layout === "list"}
                       aria-pressed={layout === "list"}
                       onClick={() => chooseLayout("list")}
                       aria-label="List"
@@ -251,8 +260,12 @@ export function HomePage({
                           d="M3 5h4v4H3V5Zm6 1h12v2H9V6Zm-6 4h4v4H3v-4Zm6 1h12v2H9v-2Zm-6 4h4v4H3v-4Zm6 1h12v2H9v-2Z"
                         />
                       </svg>
-                    </button>
-                    <button
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      icon
+                      active={layout === "grid"}
                       aria-pressed={layout === "grid"}
                       onClick={() => chooseLayout("grid")}
                       aria-label="Grid"
@@ -264,16 +277,16 @@ export function HomePage({
                           d="M3 3h8v8H3V3Zm10 0h8v8h-8V3ZM3 13h8v8H3v-8Zm10 0h8v8h-8v-8Z"
                         />
                       </svg>
-                    </button>
+                    </Button>
                   </div>
                   {user && (
-                    <button
-                      className="primary"
+                    <Button
+                      variant="primary"
                       onClick={() => fileInputRef.current?.click()}
                       title="Load a .musicxml, .xml or .mxl file"
                     >
                       Upload song
-                    </button>
+                    </Button>
                   )}
                 </div>
               </div>

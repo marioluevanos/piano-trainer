@@ -49,7 +49,7 @@
 }
 
 /* Dark mode applies to the sheet music only; the UI and keyboard stay as is. */
-@media (prefers-color-scheme: dark) {
+/* @media (prefers-color-scheme: dark) {
   :root {
     --score-bg: #242424;
     --score-text: #e4e4e7;
@@ -65,7 +65,7 @@
   .score-area {
     color-scheme: dark;
   }
-}
+} */
 
 * {
   box-sizing: border-box;
@@ -88,7 +88,7 @@ body,
 
 .toolbar {
   position: fixed;
-  top: 0;
+  bottom: 0;
   left: 0;
   right: 0;
   z-index: 10;
@@ -104,7 +104,7 @@ body,
   border-bottom: 1px solid var(--border);
   box-shadow: 0 4px 16px var(--shadow);
   font-size: 14px;
-  transform: translateY(-100%);
+  transform: translateY(100%);
   visibility: hidden;
   transition:
     transform 220ms ease,
@@ -121,25 +121,9 @@ body,
 
 .toolbar-toggle {
   position: fixed;
-  top: 6px;
+  bottom: 4px;
   right: 8px;
   z-index: 11;
-  display: inline-grid;
-  place-items: center;
-  width: 40px;
-  height: 36px;
-  padding: 0;
-  color: var(--text);
-  background: color-mix(in srgb, var(--control-bg) 85%, transparent);
-  border: 1px solid var(--control-border);
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-.toolbar-toggle.active {
-  background: var(--accent);
-  color: var(--on-accent);
-  border-color: var(--accent);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -149,8 +133,7 @@ body,
   }
 }
 
-.toolbar select,
-.toolbar button {
+.toolbar select {
   font: inherit;
   color: var(--text);
   background: var(--control-bg);
@@ -159,18 +142,6 @@ body,
   height: 36px;
   padding: 0 10px;
   cursor: pointer;
-}
-
-.toolbar button:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
-.toolbar button.active {
-  background: var(--accent);
-  color: var(--on-accent);
-  border-color: var(--accent);
-  font-weight: 600;
 }
 
 .toolbar-title {
@@ -190,19 +161,14 @@ body,
   flex-shrink: 0;
 }
 
-.toolbar .icon-button,
-.toolbar .hand-button {
-  display: inline-grid;
-  place-items: center;
-  width: 40px;
-  padding: 0;
+.hand-button {
   font-weight: 700;
 }
 
-.toolbar .hand-button.hand-L.active {
-  background: var(--left-hand);
-  border-color: var(--left-hand);
-  color: var(--on-left-hand);
+/* The left hand's toggle is lit in the left-hand color. */
+.hand-L {
+  --accent: var(--left-hand);
+  --on-accent: var(--on-left-hand);
 }
 
 .settings {
@@ -211,7 +177,7 @@ body,
 
 .settings-panel {
   position: absolute;
-  top: calc(100% + 6px);
+  bottom: calc(100% + 4px);
   right: 0;
   display: flex;
   flex-direction: column;
@@ -259,25 +225,6 @@ body,
   display: flex;
   flex-direction: column;
   height: 100%;
-}
-
-.home button {
-  font: inherit;
-  font-size: 14px;
-  color: var(--text);
-  background: var(--control-bg);
-  border: 1px solid var(--control-border);
-  border-radius: 6px;
-  min-height: 36px;
-  padding: 0 12px;
-  cursor: pointer;
-}
-
-.home button.primary {
-  background: var(--accent);
-  color: var(--on-accent);
-  border-color: var(--accent);
-  font-weight: 600;
 }
 
 .home-header {
@@ -357,23 +304,16 @@ body,
   border: 1px solid var(--control-border);
   border-radius: 6px;
   overflow: hidden;
-}
 
-.home .layout-toggle button {
-  display: grid;
-  place-items: center;
-  width: 36px;
-  min-height: 34px;
-  padding: 0;
-  color: var(--muted);
-  background: none;
-  border: none;
-  border-radius: 0;
-}
+  & .button:first-child {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+  }
 
-.home .layout-toggle button[aria-pressed="true"] {
-  color: var(--text);
-  background: var(--control-bg);
+  & .button:last-child {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+  }
 }
 
 .home-section-head h2 {
@@ -387,8 +327,8 @@ body,
 
 /* One column in portrait; as many as fit when the screen is wide. */
 .song-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  display: flex;
+  flex-direction: column;
   gap: 8px;
   margin: 0;
   padding: 0;
@@ -400,30 +340,24 @@ body,
   min-width: 0;
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 8px;
 }
 
 .song-list li.last {
-  /* border-color: var(--accent); */
+  border-color: var(--accent);
 }
 
-.home .song-open {
+.song-open {
   flex: 1;
   display: flex;
-  align-items: center;
+  justify-content: flex-start;
   gap: 12px;
   min-width: 0;
-  min-height: 56px;
-  padding: 8px;
+  min-height: 48px;
+  padding: 4px;
   text-align: left;
-  background: none;
   border: none;
-  border-radius: 10px;
-}
-
-.home .song-open:hover,
-.home .song-open:focus-visible {
-  background: var(--control-bg);
+  border-radius: 0;
 }
 
 .song-cover {
@@ -432,7 +366,7 @@ body,
   place-items: center;
   width: 48px;
   height: 48px;
-  border-radius: 6px;
+  border-radius: 4px 0 0 4px;
   object-fit: cover;
   font-size: 20px;
   font-weight: 600;
@@ -470,48 +404,34 @@ body,
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 15px;
+  font-size: 16px;
+  line-height: 1.5;
 }
 
 .song-badge {
   font-size: 12px;
   color: var(--accent);
+}
+
+.grid .song-badge {
   position: absolute;
   display: flex;
   align-items: center;
-  top: 15px;
   height: 32px;
-  left: 15px;
+  top: 8px;
+  left: 8px;
   background: var(--cover-scrim);
   padding: 4px 12px;
   border-radius: 3px;
 }
 
-.home .song-action {
+.song-action {
   flex: none;
-  display: inline-grid;
-  place-items: center;
   align-self: center;
-  width: 40px;
-  padding: 0;
-  color: var(--muted);
-  background: none;
-  border-color: transparent;
 }
 
-.home .song-action:last-child {
+.song-action:last-child {
   margin-right: 8px;
-}
-
-.home .song-action:hover,
-.home .song-action:focus-visible {
-  color: var(--text);
-  border-color: var(--control-border);
-}
-
-.home .song-remove:hover,
-.home .song-remove:focus-visible {
-  color: var(--wrong);
 }
 
 /* ---------- Add / edit song dialog (a bottom sheet on narrow screens) ---------- */
@@ -549,7 +469,7 @@ body,
   border-radius: 8px;
 }
 
-.home .cover-pick {
+.cover-pick {
   width: 100%;
   height: 100%;
   padding: 0;
@@ -560,8 +480,8 @@ body,
 }
 
 .cover-picker.dragging .cover-pick,
-.home .cover-pick:hover,
-.home .cover-pick:focus-visible {
+.cover-pick:hover,
+.cover-pick:focus-visible {
   color: var(--text);
   border-color: var(--accent);
 }
@@ -581,17 +501,10 @@ body,
   font-size: 13px;
 }
 
-.home .cover-clear {
+.cover-clear {
   position: absolute;
   top: 4px;
   right: 4px;
-  display: grid;
-  place-items: center;
-  width: 28px;
-  min-height: 28px;
-  padding: 0;
-  border-radius: 50%;
-  background: var(--panel);
 }
 
 .song-dialog-fields {
@@ -644,11 +557,6 @@ body,
   margin-top: 20px;
 }
 
-.home .song-dialog button:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
 @media (max-width: 480px) {
   .song-dialog {
     width: 100%;
@@ -671,6 +579,7 @@ body,
 /* ---------- Grid layout: covers on top, actions in a menu over the cover ---------- */
 
 .song-list.grid {
+  display: grid;
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   gap: 12px;
 }
@@ -685,10 +594,10 @@ body,
   position: relative;
 }
 
-.home .song-list.grid .song-open {
+.song-list.grid .song-open {
   flex-direction: column;
   align-items: stretch;
-  gap: 8px;
+  gap: 0;
 }
 
 .song-list.grid .song-cover {
@@ -696,10 +605,11 @@ body,
   height: auto;
   aspect-ratio: 1;
   font-size: 40px;
+  border-radius: 6px 6px 0 0;
 }
 
 .song-list.grid .song-text {
-  padding: 0 2px 2px;
+  padding: 8px 4px;
 }
 
 .song-list.grid .song-title {
@@ -712,32 +622,13 @@ body,
 /* Inset over the cover's top-right corner (card border + padding + a gap). */
 .song-menu {
   position: absolute;
-  top: 15px;
-  right: 15px;
+  top: 8px;
+  right: 8px;
   z-index: 1;
 }
 
 .song-menu.open {
   z-index: 3;
-}
-
-.home .song-menu-button {
-  display: grid;
-  place-items: center;
-  width: 32px;
-  min-height: 32px;
-  padding: 0;
-  color: var(--on-cover);
-  background: var(--cover-scrim);
-  border: none;
-  border-radius: 50%;
-}
-
-.home .song-menu-button:hover,
-.home .song-menu-button:focus-visible,
-.song-menu.open .song-menu-button {
-  color: var(--text);
-  background: var(--control-bg);
 }
 
 .song-menu-panel {
@@ -754,19 +645,8 @@ body,
   box-shadow: 0 8px 24px var(--shadow);
 }
 
-.home .song-menu-panel button {
-  text-align: left;
-  background: none;
-  border: none;
-}
-
-.home .song-menu-panel button:hover,
-.home .song-menu-panel button:focus-visible {
-  background: var(--control-bg);
-}
-
-.home .song-menu-panel .danger {
-  color: var(--wrong);
+.song-menu-panel .button {
+  justify-content: flex-start;
 }
 
 .home-placeholder {
@@ -860,7 +740,7 @@ body,
   justify-content: space-between;
   gap: 4px;
   flex-wrap: wrap;
-  padding: 4px 8px;
+  padding: 4px 4rem 4px 8px;
   font-size: 13px;
   color: var(--muted);
   background: var(--bg);
@@ -873,12 +753,6 @@ body,
 
 .status-retry {
   margin-left: 8px;
-  padding: 0 8px;
-  font: inherit;
-  color: var(--text);
-  background: var(--control-bg);
-  border: 1px solid var(--control-border);
-  border-radius: 4px;
 }
 
 .score-area {
@@ -913,25 +787,16 @@ body,
   flex-direction: column;
   align-items: flex-end;
   padding-right: 8px;
+  /* The info button takes the sheet music's palette. */
+  --text: var(--score-muted);
+  --control-bg: color-mix(in srgb, var(--score-surface) 85%, transparent);
+  --control-border: var(--score-border);
+  --accent: var(--score-accent);
+  --on-accent: var(--score-surface);
 }
 
 .score-info-button {
-  display: inline-grid;
-  place-items: center;
-  width: 24px;
-  height: 24px;
-  min-height: 24px;
   margin-top: 8px;
-  padding: 0;
-  border-radius: 24px;
-  border: 1px solid var(--score-border);
-  background: color-mix(in srgb, var(--score-surface) 85%, transparent);
-  color: var(--score-muted);
-}
-
-.score-info-button.active {
-  color: var(--score-accent);
-  border-color: var(--score-accent);
 }
 
 .score-info-panel {
@@ -988,6 +853,7 @@ body,
     background: var(--bg);
     color: var(--text);
     text-align: center;
+    display: none;
   }
 
   .rotate-prompt svg {
