@@ -7,6 +7,10 @@ export interface Song {
   user?: boolean;
   /** Fetches the score: XML text, or a Blob for a compressed .mxl, ready for OSMD. */
   load: () => Promise<string | Blob>;
+  /** Changes whenever the cover image does; absent when the song has none. */
+  coverVersion?: number;
+  /** Fetches the cover image. Present only when `coverVersion` is. */
+  loadCover?: () => Promise<Blob>;
 }
 
 const MXL_TYPE = "application/vnd.recordare.musicxml";

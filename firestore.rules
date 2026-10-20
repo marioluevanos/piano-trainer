@@ -9,7 +9,7 @@ service cloud.firestore {
     // Shared song library: anyone can read it; only scripts/upload-songs.ts
     // writes it (via the Admin SDK, which bypasses these rules).
     match /pianoTrainer/library/{collection}/{songId} {
-      allow read: if collection in ["songs", "scores"];
+      allow read: if collection in ["songs", "scores", "covers"];
       allow write: if false;
     }
 
@@ -17,16 +17,27 @@ service cloud.firestore {
     match /pianoTrainerUsers/{uid}/songs/{songId} {
       allow read, delete: if request.auth != null && request.auth.uid == uid;
       allow create, update: if request.auth != null && request.auth.uid == uid
-        && request.resource.data.keys().hasOnly(["title", "format", "createdAt"])
+        && request.resource.data.keys().hasOnly(["title", "format", "createdAt", "coverVersion"])
         && request.resource.data.title is string
         && request.resource.data.title.size() <= 300
-        && request.resource.data.format in ["xml", "mxl"];
+        && request.resource.data.format in ["xml", "mxl"]
+        && (!("coverVersion" in request.resource.data)
+          || request.resource.data.coverVersion is int);
     }
     match /pianoTrainerUsers/{uid}/scores/{songId} {
       allow read, delete: if request.auth != null && request.auth.uid == uid;
       allow create, update: if request.auth != null && request.auth.uid == uid
         && request.resource.data.keys().hasOnly(["data"])
         && request.resource.data.data is bytes;
+    }
+    // A song's optional cover image (see src/songs/paths.ts).
+    match /pianoTrainerUsers/{uid}/covers/{songId} {
+      allow read, delete: if request.auth != null && request.auth.uid == uid;
+      allow create, update: if request.auth != null && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(["data", "type"])
+        && request.resource.data.data is bytes
+        && request.resource.data.data.size() <= 300000
+        && request.resource.data.type in ["image/webp", "image/jpeg"];
     }
   }
 }

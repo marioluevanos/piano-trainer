@@ -1,6 +1,30 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import type { User } from "firebase/auth";
 import type { Song } from "../songs";
+import { useCoverUrl } from "../songs/cover";
+import { readSongFile, type ImportedSong, type SongDetails } from "../songs/library";
+import { SongDialog } from "./SongDialog";
+import { SongMenu } from "./SongMenu";
+
+type Layout = "list" | "grid";
+
+const LAYOUT_KEY = "piano-trainer.song-layout.v1";
+
+function loadLayout(): Layout {
+  try {
+    return localStorage.getItem(LAYOUT_KEY) === "grid" ? "grid" : "list";
+  } catch {
+    return "list";
+  }
+}
+
+function saveLayout(layout: Layout) {
+  try {
+    localStorage.setItem(LAYOUT_KEY, layout);
+  } catch {
+    // Not remembering the layout is harmless.
+  }
+}
 
 interface Props {
   songs: Song[];
@@ -10,10 +34,56 @@ interface Props {
   error: string | null;
   user: User | null;
   onOpen: (id: string) => void;
-  onAdd: (file: File) => void;
+  /** Saves a new song. Throws (with a message for the user) if that fails. */
+  onAdd: (song: ImportedSong, details: SongDetails) => Promise<void>;
+  /** Changes a song's title or cover. Throws if that fails. */
+  onEdit: (id: string, details: SongDetails) => Promise<void>;
   onRemove: (id: string) => void;
   onSignIn: () => void;
   onSignOut: () => void;
+}
+
+/** Placeholder colors (cover-tone-N in styles.css) for songs without a cover. */
+const TONES = 6;
+
+function tone(id: string) {
+  let hash = 0;
+  for (const ch of id) hash = (hash * 31 + ch.charCodeAt(0)) | 0;
+  return Math.abs(hash) % TONES;
+}
+
+/** A song's square cover, or a colored tile with its initial when it has none. */
+function SongCover({ song }: { song: Song }) {
+  const url = useCoverUrl(song);
+  if (url) return <img className="song-cover" src={url} alt="" />;
+  return (
+    <span className={`song-cover cover-tone-${tone(song.id)}`} aria-hidden="true">
+      {song.title.trim().charAt(0).toUpperCase()}
+    </span>
+  );
+}
+
+/** The edit dialog for one of the user's songs, previewing its current cover. */
+function EditSongDialog({
+  song,
+  onEdit,
+  onClose,
+}: {
+  song: Song;
+  onEdit: Props["onEdit"];
+  onClose: () => void;
+}) {
+  const coverUrl = useCoverUrl(song);
+  return (
+    <SongDialog
+      heading="Edit song"
+      submitLabel="Save"
+      initialTitle={song.title}
+      initialCoverUrl={coverUrl}
+      onSubmit={(details) => onEdit(song.id, details)}
+      onClose={onClose}
+    />
+  );
 }
 
 /** The start screen: the song list, importing and removing songs, and the account. */
@@ -25,16 +95,32 @@ export function HomePage({
   user,
   onOpen,
   onAdd,
+  onEdit,
   onRemove,
   onSignIn,
   onSignOut,
 }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [adding, setAdding] = useState<{ song: ImportedSong; fileName: string } | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const editing = songs.find((s) => s.id === editingId);
+  const [pickError, setPickError] = useState<string | null>(null);
+  const [layout, setLayout] = useState(loadLayout);
+  const chooseLayout = (next: Layout) => {
+    setLayout(next);
+    saveLayout(next);
+  };
 
-  const onPickFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const onPickFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = "";
-    if (file) onAdd(file);
+    if (!file) return;
+    try {
+      setAdding({ song: await readSongFile(file), fileName: file.name });
+      setPickError(null);
+    } catch (err) {
+      setPickError(err instanceof Error ? err.message : String(err));
+    }
   };
 
   const remove = (song: Song) => {
@@ -45,18 +131,48 @@ export function HomePage({
   const own = songs.filter((s) => s.user);
 
   const list = (items: Song[]) => (
-    <ul className="song-list">
+    <ul className={`song-list ${layout}`}>
       {items.map((s) => (
         <li key={s.id} className={s.id === lastSongId ? "last" : undefined}>
           <button className="song-open" onClick={() => onOpen(s.id)}>
-            <span className="song-title">{s.title}</span>
-            {s.id === lastSongId && (
-              <span className="song-badge">Last played</span>
-            )}
+            <SongCover song={s} />
+            <span className="song-text">
+              <span className="song-title">{s.title}</span>
+              {s.id === lastSongId && (
+                <span className="song-badge">Last played</span>
+              )}
+            </span>
           </button>
-          {s.user && (
+          {s.user && layout === "grid" && (
+            <SongMenu
+              title={s.title}
+              onEdit={() => setEditingId(s.id)}
+              onRemove={() => remove(s)}
+            />
+          )}
+          {s.user && layout === "list" && (
             <button
-              className="song-remove"
+              className="song-action"
+              onClick={() => setEditingId(s.id)}
+              aria-label={`Edit ${s.title}`}
+              title="Edit the title or cover"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                width="18"
+                height="18"
+                aria-hidden="true"
+              >
+                <path
+                  fill="currentColor"
+                  d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25ZM20.7 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83Z"
+                />
+              </svg>
+            </button>
+          )}
+          {s.user && layout === "list" && (
+            <button
+              className="song-action song-remove"
               onClick={() => remove(s)}
               aria-label={`Remove ${s.title}`}
               title="Remove this song from your songs"
@@ -113,7 +229,7 @@ export function HomePage({
       </header>
 
       <main className="home-body">
-        {error && <p className="home-error">{error}</p>}
+        {(pickError ?? error) && <p className="home-error">{pickError ?? error}</p>}
         {loading ? (
           <p className="home-placeholder">Loading songs…</p>
         ) : (
@@ -121,15 +237,45 @@ export function HomePage({
             <section>
               <div className="home-section-head">
                 <h2>Your songs</h2>
-                {user && (
-                  <button
-                    className="primary"
-                    onClick={() => fileInputRef.current?.click()}
-                    title="Load a .musicxml, .xml or .mxl file"
-                  >
-                    Upload song
-                  </button>
-                )}
+                <div className="home-section-tools">
+                  <div className="layout-toggle" role="group" aria-label="Song layout">
+                    <button
+                      aria-pressed={layout === "list"}
+                      onClick={() => chooseLayout("list")}
+                      aria-label="List"
+                      title="Show songs as a list"
+                    >
+                      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                        <path
+                          fill="currentColor"
+                          d="M3 5h4v4H3V5Zm6 1h12v2H9V6Zm-6 4h4v4H3v-4Zm6 1h12v2H9v-2Zm-6 4h4v4H3v-4Zm6 1h12v2H9v-2Z"
+                        />
+                      </svg>
+                    </button>
+                    <button
+                      aria-pressed={layout === "grid"}
+                      onClick={() => chooseLayout("grid")}
+                      aria-label="Grid"
+                      title="Show songs as a grid of covers"
+                    >
+                      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                        <path
+                          fill="currentColor"
+                          d="M3 3h8v8H3V3Zm10 0h8v8h-8V3ZM3 13h8v8H3v-8Zm10 0h8v8h-8v-8Z"
+                        />
+                      </svg>
+                    </button>
+                  </div>
+                  {user && (
+                    <button
+                      className="primary"
+                      onClick={() => fileInputRef.current?.click()}
+                      title="Load a .musicxml, .xml or .mxl file"
+                    >
+                      Upload song
+                    </button>
+                  )}
+                </div>
               </div>
               {own.length ? (
                 list(own)
@@ -163,6 +309,20 @@ export function HomePage({
         hidden
         onChange={onPickFile}
       />
+      {adding && (
+        <SongDialog
+          heading="Add song"
+          submitLabel="Add song"
+          initialTitle={adding.song.title}
+          initialCoverUrl={null}
+          fileName={adding.fileName}
+          onSubmit={(details) => onAdd(adding.song, details)}
+          onClose={() => setAdding(null)}
+        />
+      )}
+      {editing && (
+        <EditSongDialog song={editing} onEdit={onEdit} onClose={() => setEditingId(null)} />
+      )}
     </div>
   );
 }

@@ -24,6 +24,8 @@ import {
   loadSelectedSongId,
   saveSelectedSongId,
   useSongLibrary,
+  type ImportedSong,
+  type SongDetails,
 } from "./songs/library";
 
 export default function App() {
@@ -70,9 +72,9 @@ export default function App() {
   };
   const goHome = () => history.back();
 
-  const onAddSong = async (file: File) => {
-    const added = await library.addSong(file);
-    if (added) openSong(added.id);
+  const onAddSong = async (song: ImportedSong, details: SongDetails) => {
+    const added = await library.addSong(song, details);
+    openSong(added.id);
   };
   const toolbarRef = useRef<HTMLElement>(null);
   const toolbarToggleRef = useRef<HTMLButtonElement>(null);
@@ -306,6 +308,7 @@ export default function App() {
         user={library.user}
         onOpen={openSong}
         onAdd={onAddSong}
+        onEdit={library.editSong}
         onRemove={library.removeSong}
         onSignIn={library.signIn}
         onSignOut={library.signOut}

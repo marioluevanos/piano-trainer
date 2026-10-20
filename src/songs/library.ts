@@ -9,6 +9,7 @@ import {
 import {
   Bytes,
   collection,
+  deleteField,
   doc,
   getDoc,
   onSnapshot,
@@ -19,7 +20,7 @@ import {
 import { auth, db } from "../firebase";
 import { decodeScore, gzipText, type Song } from "./index";
 import { isMusicXml, songTitle } from "./metadata";
-import { LIBRARY_DOC, MAX_SCORE_BYTES, userDoc } from "./paths";
+import { LIBRARY_DOC, MAX_COVER_BYTES, MAX_SCORE_BYTES, userDoc } from "./paths";
 
 const SELECTED_KEY = "piano-trainer.selected-song.v1";
 
@@ -42,16 +43,23 @@ export function saveSelectedSongId(id: string) {
 
 /* ---------- Importing ---------- */
 
-/** An imported song, with its score bytes in the stored form (see paths.ts). */
-interface ImportedSong {
+/** A song read from a file but not saved yet, with its score bytes in the stored form (see paths.ts). */
+export interface ImportedSong {
   id: string;
   title: string;
   format: Song["format"];
   bytes: Uint8Array<ArrayBuffer>;
 }
 
+/** What the user can set when adding or editing a song. */
+export interface SongDetails {
+  title: string;
+  /** The new cover, null to remove it, or undefined to keep the current one. */
+  cover?: Blob | null;
+}
+
 /** Turn a .musicxml / .xml / .mxl file into a song. Throws on unsupported input. */
-async function songFromFile(file: File): Promise<ImportedSong> {
+export async function readSongFile(file: File): Promise<ImportedSong> {
   const fallback = file.name.replace(/\.(musicxml|xml|mxl)$/i, "");
   const id = `user-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const isMxl = /\.mxl$/i.test(file.name) || file.type.includes("zip");
@@ -71,7 +79,10 @@ async function songFromFile(file: File): Promise<ImportedSong> {
 /* ---------- Songs in Firestore ---------- */
 
 function cloudSong(snap: QueryDocumentSnapshot, base: string, user: boolean): Song {
-  const { title, format } = snap.data() as Pick<Song, "title" | "format">;
+  const { title, format, coverVersion } = snap.data() as Pick<
+    Song,
+    "title" | "format" | "coverVersion"
+  >;
   return {
     id: snap.id,
     title,
@@ -83,24 +94,48 @@ function cloudSong(snap: QueryDocumentSnapshot, base: string, user: boolean): So
       if (!bytes) throw new Error(`the score for "${title}" is missing`);
       return decodeScore(format, new Uint8Array(bytes.toUint8Array()));
     },
+    ...(coverVersion !== undefined && {
+      coverVersion,
+      loadCover: async () => {
+        const cover = await getDoc(doc(db, base, "covers", snap.id));
+        const bytes = cover.get("data") as Bytes | undefined;
+        if (!bytes) throw new Error(`the cover for "${title}" is missing`);
+        return new Blob([new Uint8Array(bytes.toUint8Array())], { type: cover.get("type") });
+      },
+    }),
   };
 }
 
-/** Save a song to the signed-in user's library in Firestore. */
-async function uploadSong(uid: string, song: ImportedSong) {
+async function coverDoc(cover: Blob) {
+  if (cover.size > MAX_COVER_BYTES) throw new Error("The cover image is too large.");
+  const bytes = new Uint8Array(await cover.arrayBuffer());
+  return { data: Bytes.fromUint8Array(bytes), type: cover.type };
+}
+
+function checkTitle(title: string) {
+  if (!title.trim()) throw new Error("The song needs a title.");
+}
+
+/** Save a song, and its cover if any, to the signed-in user's library in Firestore. */
+async function uploadSong(uid: string, song: ImportedSong, { title, cover }: SongDetails) {
   const { bytes } = song;
+  checkTitle(title);
   if (bytes.length > MAX_SCORE_BYTES) {
-    throw new Error(`"${song.title}" is too large to sync (over 1 MB compressed).`);
+    throw new Error(`"${title}" is too large to sync (over 1 MB compressed).`);
   }
   const base = userDoc(uid);
   const batch = writeBatch(db);
+  const coverVersion = cover ? Date.now() : undefined;
   batch.set(doc(db, base, "songs", song.id), {
-    title: song.title,
+    title: title.trim(),
     format: song.format,
     createdAt: serverTimestamp(),
+    ...(coverVersion && { coverVersion }),
   });
   batch.set(doc(db, base, "scores", song.id), { data: Bytes.fromUint8Array(bytes) });
+  if (cover) batch.set(doc(db, base, "covers", song.id), await coverDoc(cover));
   await batch.commit();
+  return coverVersion;
 }
 
 const message = (err: unknown) => (err instanceof Error ? err.message : String(err));
@@ -159,22 +194,41 @@ export function useSongLibrary() {
     );
   }, [user]);
 
+  /** Save a song read with `readSongFile`. Throws if it cannot be saved. */
   const addSong = useCallback(
-    async (file: File): Promise<Song | null> => {
-      if (!user) {
-        setError("Sign in to upload songs.");
-        return null;
-      }
-      try {
-        const song = await songFromFile(file);
-        await uploadSong(user.uid, song);
-        setError(null);
-        const { id, title, format, bytes } = song;
-        return { id, title, format, user: true, load: () => decodeScore(format, bytes) };
-      } catch (err) {
-        setError(message(err));
-        return null;
-      }
+    async (song: ImportedSong, details: SongDetails): Promise<Song> => {
+      if (!user) throw new Error("Sign in to upload songs.");
+      const coverVersion = await uploadSong(user.uid, song, details);
+      setError(null);
+      const { id, format, bytes } = song;
+      const { cover } = details;
+      return {
+        id,
+        title: details.title.trim(),
+        format,
+        user: true,
+        load: () => decodeScore(format, bytes),
+        ...(coverVersion && cover && { coverVersion, loadCover: async () => cover }),
+      };
+    },
+    [user],
+  );
+
+  /** Change the title or cover of one of the user's songs. Throws if it cannot be saved. */
+  const editSong = useCallback(
+    async (id: string, { title, cover }: SongDetails) => {
+      if (!user) throw new Error("Sign in to edit songs.");
+      checkTitle(title);
+      const base = userDoc(user.uid);
+      const batch = writeBatch(db);
+      batch.update(doc(db, base, "songs", id), {
+        title: title.trim(),
+        ...(cover !== undefined && { coverVersion: cover ? Date.now() : deleteField() }),
+      });
+      if (cover) batch.set(doc(db, base, "covers", id), await coverDoc(cover));
+      else if (cover === null) batch.delete(doc(db, base, "covers", id));
+      await batch.commit();
+      setError(null);
     },
     [user],
   );
@@ -186,6 +240,7 @@ export function useSongLibrary() {
       const batch = writeBatch(db);
       batch.delete(doc(db, base, "songs", id));
       batch.delete(doc(db, base, "scores", id));
+      batch.delete(doc(db, base, "covers", id));
       await batch.commit().catch((err) => setError(message(err)));
     },
     [user],
@@ -215,6 +270,7 @@ export function useSongLibrary() {
     signIn,
     signOut,
     addSong,
+    editSong,
     removeSong,
     error,
   };
