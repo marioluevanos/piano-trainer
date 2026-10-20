@@ -19,6 +19,8 @@ npm test           # practice-engine unit tests
 npm run build      # type-check + production build into dist/
 npm run import-songs -- <folder>   # add MusicXML / .mxl songs to src/songs/ (see below)
 npm run upload-songs               # publish src/songs/ to the shared library in Firestore
+npm run deploy                     # deploy dist/ to Firebase Hosting
+npm run deploy:rules               # deploy firestore.rules (the whole mario-luevanos project's rules)
 ```
 
 Web MIDI needs a secure context (https or localhost). Chrome, Edge and Opera support it on desktop and Android; Firefox needs the site-permission add-on; Safari does not support it.
@@ -46,19 +48,22 @@ MusicXML ──► OpenSheetMusicDisplay ──► cursor walk ──► Step[]
 
 The app reads **MusicXML**, the standard exchange format for sheet music. Two ways to add a song:
 
-| | Load in the app | Bundle with the app |
+| | Load in the app | Shared library |
 |---|---|---|
-| How | **Load song…** button | `npm run import-songs -- <folder>` |
-| Formats | `.musicxml`, `.xml`, `.mxl` | `.musicxml` or `.xml` only (uncompressed) |
-| Where it lives | This browser's localStorage only | Every build, every device |
+| How | **Load song…** button | `npm run import-songs`, then `npm run upload-songs` |
+| Formats | `.musicxml`, `.xml`, `.mxl` | `.musicxml`, `.xml`, `.mxl` |
+| Who sees it | You: this browser, or every device when signed in | Everyone, on every device |
+| Needs a redeploy | No | No |
 
 ### Load in the app
 
 Click **Load song…** and pick the file. Compressed `.mxl` works as is. Signed out, the song stays in that browser until you click **Remove**. Signed in (**Sign in to sync songs** in the settings menu), it is saved to your Google account in Firestore and shows up on every device; songs loaded while signed out move into the account at the next sign-in.
 
-### Bundle with the app
+### Add to the shared library
 
-Put the files in a folder (or use one you already have, like Downloads) and run:
+This is two steps: `import-songs` checks the scores and copies them into `src/songs/`, and `upload-songs` publishes that folder to Firestore, where the app reads its song list.
+
+**1. Import.** Put the files in a folder (or use one you already have, like Downloads) and run:
 
 ```sh
 npm run import-songs -- ~/Downloads/new-songs           # a folder: every .mxl, .musicxml and .xml in it
@@ -75,16 +80,23 @@ For each file the script:
 
 It never overwrites a different song with the same name unless you pass `--force`.
 
-The app no longer bundles `src/songs/`; it reads the shared library from Firestore. Publish the folder with:
+**2. Upload.** The app does not bundle `src/songs/`; publish it with:
 
 ```sh
-gcloud auth application-default login   # once, so the script can write as you
 npm run upload-songs                    # upload new and changed songs (compared by hash)
 npm run upload-songs -- --prune         # also delete library songs whose file is gone
 npm run upload-songs -- --dry-run       # report only
 ```
 
-Open the app and the new songs appear without a redeploy. Try each hand and ▶ Play. To remove a song, delete its file and run with `--prune`.
+Open the app and the new songs appear without a redeploy. Try each hand and ▶ Play. To remove a song, delete its file and run with `--prune`. Commit `src/songs/` too: it is the source the library is uploaded from.
+
+**First time on a new computer**, give the upload script your Google credentials:
+
+```sh
+gcloud auth application-default login
+```
+
+On the consent page, tick every checkbox (or **Select all**). Leaving "See, edit, configure, and delete your Google Cloud data" unticked fails with `cloud-platform scope is required but not consented`. If the upload then complains about a quota project, run `gcloud auth application-default set-quota-project mario-luevanos`.
 
 <details>
 <summary>Doing it by hand</summary>
