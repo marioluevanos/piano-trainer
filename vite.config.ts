@@ -34,6 +34,28 @@ export default defineConfig({
       },
     }),
   ],
+  // Shown in the settings panel, to tell whether an installed PWA runs the latest deploy.
+  define: {
+    __BUILD_TIME__: JSON.stringify(
+      new Date().toISOString().slice(0, 16).replace("T", " ") + " UTC",
+    ),
+  },
   // Relative base so the same build works in a browser and inside a Capacitor WebView.
   base: "./",
+  build: {
+    rolldownOptions: {
+      output: {
+        // The libraries change far less often than the app, so keep them in
+        // their own long-cached chunks.
+        codeSplitting: {
+          groups: [
+            { name: "osmd", test: /node_modules[\\/]opensheetmusicdisplay/ },
+            { name: "firebase", test: /node_modules[\\/]@?firebase/ },
+          ],
+        },
+      },
+    },
+    // OSMD alone is ~1.4 MB minified and cannot be split further.
+    chunkSizeWarningLimit: 1600,
+  },
 });

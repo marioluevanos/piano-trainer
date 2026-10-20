@@ -1,35 +1,41 @@
-import { songTitle } from "./metadata";
-
 export interface Song {
   id: string;
   title: string;
-  /** "xml": `data` is MusicXML text. "mxl": `data` is a base64-encoded compressed MusicXML (.mxl) file. */
+  /** "xml": MusicXML text. "mxl": a compressed MusicXML (.mxl) archive. */
   format: "xml" | "mxl";
-  data: string;
-  /** True for songs the user imported (stored in localStorage, removable). */
+  /** True for songs the user imported (removable). */
   user?: boolean;
+  /** Fetches the score: XML text, or a Blob for a compressed .mxl, ready for OSMD. */
+  load: () => Promise<string | Blob>;
 }
 
-/**
- * Every .musicxml file in this folder, imported as text. Add songs with
- * `npm run import-songs -- <folder>`; the title comes from the score itself.
- */
-const files = import.meta.glob<string>("./*.musicxml", {
-  query: "?raw",
-  import: "default",
-  eager: true,
-});
+const MXL_TYPE = "application/vnd.recordare.musicxml";
 
-export const BUNDLED_SONGS: Song[] = Object.entries(files)
-  .map(([path, data]): Song => {
-    const id = path.replace(/^\.\/|\.musicxml$/g, "");
-    return { id, title: songTitle(data, id), format: "xml", data };
-  })
-  .sort((a, b) => a.title.localeCompare(b.title));
+async function pipe(
+  bytes: Uint8Array<ArrayBuffer>,
+  stream: CompressionStream | DecompressionStream,
+): Promise<Uint8Array<ArrayBuffer>> {
+  const out = new Blob([bytes]).stream().pipeThrough(stream);
+  return new Uint8Array(await new Response(out).arrayBuffer());
+}
 
-/** What OSMD should load for this song: the XML text, or a Blob for a compressed .mxl. */
-export function songSource(song: Song): string | Blob {
-  if (song.format === "xml") return song.data;
-  const bytes = Uint8Array.from(atob(song.data), (c) => c.charCodeAt(0));
-  return new Blob([bytes], { type: "application/vnd.recordare.musicxml" });
+/** MusicXML text as stored in Firestore (see paths.ts). */
+export function gzipText(text: string): Promise<Uint8Array<ArrayBuffer>> {
+  return pipe(new TextEncoder().encode(text), new CompressionStream("gzip"));
+}
+
+/** What OSMD should load for score bytes stored in Firestore. */
+export async function decodeScore(
+  format: Song["format"],
+  bytes: Uint8Array<ArrayBuffer>,
+): Promise<string | Blob> {
+  if (format === "mxl") return new Blob([bytes], { type: MXL_TYPE });
+  return new TextDecoder().decode(await pipe(bytes, new DecompressionStream("gzip")));
+}
+
+/** What OSMD should load for a song kept in localStorage (base64 for .mxl). */
+export function localSource(format: Song["format"], data: string): string | Blob {
+  if (format === "xml") return data;
+  const bytes = Uint8Array.from(atob(data), (c) => c.charCodeAt(0));
+  return new Blob([bytes], { type: MXL_TYPE });
 }

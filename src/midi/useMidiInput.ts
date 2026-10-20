@@ -31,6 +31,8 @@ export function useMidiInput(handlers: MidiHandlers) {
       : "unsupported",
   );
   const [inputs, setInputs] = useState<MidiInputInfo[]>([]);
+  /** Name and message of the error requestMIDIAccess rejected with, if any. */
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!("requestMIDIAccess" in navigator)) return;
@@ -69,7 +71,13 @@ export function useMidiInput(handlers: MidiHandlers) {
       })
       .catch((err: unknown) => {
         if (cancelled) return;
-        const name = err instanceof Error ? err.name : "";
+        const name =
+          err instanceof Error || err instanceof DOMException ? err.name : "";
+        const message =
+          err instanceof Error || err instanceof DOMException
+            ? err.message
+            : String(err);
+        setError([name, message].filter(Boolean).join(": ") || "unknown");
         setStatus(
           name === "SecurityError" || name === "NotAllowedError"
             ? "denied"
@@ -86,5 +94,5 @@ export function useMidiInput(handlers: MidiHandlers) {
     };
   }, []);
 
-  return { status, inputs };
+  return { status, inputs, error };
 }

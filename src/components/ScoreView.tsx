@@ -22,8 +22,8 @@ export interface ScoreInfo {
 }
 
 interface ScoreViewProps {
-  /** MusicXML text, or a Blob holding a compressed .mxl file. */
-  source: string | Blob;
+  /** Resolves to MusicXML text, or a Blob holding a compressed .mxl file. */
+  source: Promise<string | Blob>;
   /** Step whose notes the cursor should highlight. */
   cursorStep: number;
   onReady: (info: ScoreInfo) => void;
@@ -97,8 +97,8 @@ export function ScoreView({
     });
     osmdRef.current = osmd;
 
-    osmd
-      .load(source)
+    source
+      .then((data) => (disposed ? undefined : osmd.load(data)))
       .then(() => {
         if (disposed) return;
         applyScoreColors(osmd, el);

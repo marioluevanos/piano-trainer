@@ -1,0 +1,32 @@
+rules_version = '2';
+
+// Rules for the whole mario-luevanos project, deployed from this repo with
+// `npm run deploy:rules`. The Portfolio app only uses Firestore through the
+// Admin SDK in its Cloud Functions, which bypasses these rules, so nothing here
+// needs to allow it.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Shared song library: anyone can read it; only scripts/upload-songs.ts
+    // writes it (via the Admin SDK, which bypasses these rules).
+    match /pianoTrainer/library/{collection}/{songId} {
+      allow read: if collection in ["songs", "scores"];
+      allow write: if false;
+    }
+
+    // Songs a user imported: only that user can read or change them.
+    match /pianoTrainerUsers/{uid}/songs/{songId} {
+      allow read, delete: if request.auth != null && request.auth.uid == uid;
+      allow create, update: if request.auth != null && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(["title", "format", "createdAt"])
+        && request.resource.data.title is string
+        && request.resource.data.title.size() <= 300
+        && request.resource.data.format in ["xml", "mxl"];
+    }
+    match /pianoTrainerUsers/{uid}/scores/{songId} {
+      allow read, delete: if request.auth != null && request.auth.uid == uid;
+      allow create, update: if request.auth != null && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(["data"])
+        && request.resource.data.data is bytes;
+    }
+  }
+}

@@ -19,7 +19,6 @@ import type { Hand, HandMode, KeyState, LoopRange, Step } from "./engine/types";
 import { useMidiInput } from "./midi/useMidiInput";
 import { usePlayback } from "./midi/usePlayback";
 import { loadPiano, synthNoteOff, synthNoteOn } from "./midi/synth";
-import { songSource } from "./songs";
 import {
   loadSelectedSongId,
   saveSelectedSongId,
@@ -28,13 +27,19 @@ import {
 
 export default function App() {
   const library = useSongLibrary();
-  const [songId, setSongId] = useState(
-    () => loadSelectedSongId() ?? library.songs[0].id,
-  );
-  // Falls back to the first song if the remembered one was removed.
-  const song = library.songs.find((s) => s.id === songId) ?? library.songs[0];
-  useEffect(() => saveSelectedSongId(song.id), [song.id]);
-  const source = useMemo(() => songSource(song), [song]);
+  const [songId, setSongId] = useState(loadSelectedSongId);
+  const selectSong = (id: string) => {
+    setSongId(id);
+    saveSelectedSongId(id);
+  };
+  // Falls back to the first song if the remembered one was removed. Nothing is
+  // picked until the whole library is known, so a remembered song of the user's
+  // is not passed over while their list is still loading.
+  const song = library.loading
+    ? undefined
+    : (library.songs.find((s) => s.id === songId) ?? library.songs[0]);
+  // Keyed on the id: the song objects are rebuilt whenever the list updates.
+  const source = useMemo(() => song?.load(), [song?.id]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const onPickFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -42,7 +47,7 @@ export default function App() {
     e.target.value = "";
     if (!file) return;
     const added = await library.addSong(file);
-    if (added) setSongId(added.id);
+    if (added) selectSong(added.id);
   };
 
   const [steps, setSteps] = useState<Step[]>([]);
@@ -308,8 +313,8 @@ export default function App() {
       >
         <select
           className="song-select"
-          value={songId}
-          onChange={(e) => setSongId(e.target.value)}
+          value={song?.id ?? ""}
+          onChange={(e) => selectSong(e.target.value)}
           aria-label="Song"
         >
           {library.songs.map((s) => (
@@ -368,12 +373,9 @@ export default function App() {
               >
                 Load song…
               </button>
-              {song.user && (
+              {song?.user && (
                 <button
-                  onClick={() => {
-                    library.removeSong(song.id);
-                    setSongId(library.songs[0].id);
-                  }}
+                  onClick={() => library.removeSong(song.id)}
                   title="Remove this song from the library"
                 >
                   Remove song
@@ -383,19 +385,42 @@ export default function App() {
             </div>
 
             <div className="settings-row">
+              {library.user ? (
+                <>
+                  <span className="account">
+                    {library.user.displayName ?? library.user.email}
+                  </span>
+                  <button
+                    onClick={library.signOut}
+                    title="Your songs stay in your account"
+                  >
+                    Sign out
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={library.signIn}
+                  title="Keep the songs you load in your Google account, on every device"
+                >
+                  Sign in to sync songs
+                </button>
+              )}
+            </div>
+
+            <div className="settings-row">
               <label>
                 Loop
                 <select
                   value={loop ? loop.startMeasure : ""}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    // "off" has an empty value, which Number() would turn into measure 1.
+                    if (e.target.value === "") return setLoop(null);
+                    const start = Number(e.target.value);
                     setLoop({
-                      startMeasure: Number(e.target.value),
-                      endMeasure: Math.max(
-                        Number(e.target.value),
-                        loop?.endMeasure ?? Number(e.target.value),
-                      ),
-                    })
-                  }
+                      startMeasure: start,
+                      endMeasure: Math.max(start, loop?.endMeasure ?? start),
+                    });
+                  }}
                 >
                   <option value="">off</option>
                   {measureOptions.map((i) => (
@@ -481,6 +506,9 @@ export default function App() {
                 Sound
               </label>
             </div>
+            <div className="settings-row build-info">
+              Build {__BUILD_TIME__}
+            </div>
           </SettingsMenu>
         </div>
       </header>
@@ -501,13 +529,19 @@ export default function App() {
         {scoreError && (
           <p className="error">Could not load score: {scoreError}</p>
         )}
-        <ScoreView
-          source={source}
-          cursorStep={engine.stepIndex}
-          onReady={handleReady}
-          onScoreClick={seekTo}
-          onError={setScoreError}
-        />
+        {source ? (
+          <ScoreView
+            source={source}
+            cursorStep={engine.stepIndex}
+            onReady={handleReady}
+            onScoreClick={seekTo}
+            onError={setScoreError}
+          />
+        ) : (
+          <p className="score-placeholder">
+            {library.loading ? "Loading songs…" : "No songs yet. Load one from the settings menu."}
+          </p>
+        )}
       </section>
 
       <section className="status">
@@ -522,11 +556,11 @@ export default function App() {
                 ? "MIDI access denied"
                 : midi.status === "requesting"
                   ? "Requesting MIDI access…"
-                  : "MIDI error"}
+                  : `MIDI error (${midi.error})`}
         </span>
         <span>
           {playback.playing
-            ? "Playing…"
+            ? `Playing…${loop ? ` · loop ${loop.startMeasure + 1}–${loop.endMeasure + 1}` : ""}`
             : engine.finished
               ? "Finished! 🎉"
               : steps.length

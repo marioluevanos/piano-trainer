@@ -17,7 +17,8 @@ npm install
 npm run dev        # http://localhost:5173, also reachable on your LAN for a phone
 npm test           # practice-engine unit tests
 npm run build      # type-check + production build into dist/
-npm run import-songs -- <folder>   # add MusicXML / .mxl songs to the app (see below)
+npm run import-songs -- <folder>   # add MusicXML / .mxl songs to src/songs/ (see below)
+npm run upload-songs               # publish src/songs/ to the shared library in Firestore
 ```
 
 Web MIDI needs a secure context (https or localhost). Chrome, Edge and Opera support it on desktop and Android; Firefox needs the site-permission add-on; Safari does not support it.
@@ -53,7 +54,7 @@ The app reads **MusicXML**, the standard exchange format for sheet music. Two wa
 
 ### Load in the app
 
-Click **Load song…** and pick the file. Compressed `.mxl` works as is. The song stays in that browser until you click **Remove**; very large scores can fill the browser's storage.
+Click **Load song…** and pick the file. Compressed `.mxl` works as is. Signed out, the song stays in that browser until you click **Remove**. Signed in (**Sign in to sync songs** in the settings menu), it is saved to your Google account in Firestore and shows up on every device; songs loaded while signed out move into the account at the next sign-in.
 
 ### Bundle with the app
 
@@ -72,7 +73,18 @@ For each file the script:
 - skips files already imported (same content), files that are not MusicXML, and formats that need converting first (`.mid`, `.mscz`, `.mus`, `.pdf`, with a hint on how),
 - warns about scores that will play badly: more than one part, a single staff, or no tempo marking.
 
-It never overwrites a different song with the same name unless you pass `--force`. There is nothing to register: `src/songs/index.ts` loads every `.musicxml` file in `src/songs/` and takes the title and composer from the score. To remove a bundled song, delete its file. Run `npm run dev` to check the new songs, trying each hand and ▶ Play.
+It never overwrites a different song with the same name unless you pass `--force`.
+
+The app no longer bundles `src/songs/`; it reads the shared library from Firestore. Publish the folder with:
+
+```sh
+gcloud auth application-default login   # once, so the script can write as you
+npm run upload-songs                    # upload new and changed songs (compared by hash)
+npm run upload-songs -- --prune         # also delete library songs whose file is gone
+npm run upload-songs -- --dry-run       # report only
+```
+
+Open the app and the new songs appear without a redeploy. Try each hand and ▶ Play. To remove a song, delete its file and run with `--prune`.
 
 <details>
 <summary>Doing it by hand</summary>
@@ -84,7 +96,7 @@ unzip -l my-song.mxl     # the score is the .xml that is not in META-INF/
 unzip -p my-song.mxl score.xml > src/songs/my-song.musicxml
 ```
 
-Or in MuseScore use File → Export → MusicXML and choose the uncompressed `.musicxml` option. Either way, any `.musicxml` file in `src/songs/` is picked up automatically.
+Or in MuseScore use File → Export → MusicXML and choose the uncompressed `.musicxml` option. Either way, `npm run upload-songs` publishes any `.musicxml` file in `src/songs/`.
 
 </details>
 
