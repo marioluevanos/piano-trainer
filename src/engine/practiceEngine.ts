@@ -69,6 +69,25 @@ export function loopStartIndex(steps: Step[], loop: LoopRange | null): number {
   return i;
 }
 
+/**
+ * True when the step after `from` falls outside the loop's measures, so the loop
+ * wraps there. Checking both bounds matters for scores with repeats: steps
+ * follow the performance order, so a repeat sign can jump back to measures
+ * before the loop, or replay the loop's measures only after the rest of the piece.
+ */
+export function leavesLoop(
+  steps: Step[],
+  from: number,
+  loop: LoopRange,
+): boolean {
+  const next = steps[from + 1];
+  return (
+    !next ||
+    next.measure < loop.startMeasure ||
+    next.measure > loop.endMeasure
+  );
+}
+
 /** Index of the step that follows `from`, honoring the loop range. -1 means the piece is finished. */
 export function nextStepIndex(
   steps: Step[],
@@ -77,10 +96,7 @@ export function nextStepIndex(
 ): number {
   const next = from + 1;
   if (loop) {
-    if (next >= steps.length || steps[next].measure > loop.endMeasure) {
-      return loopStartIndex(steps, loop);
-    }
-    return next;
+    return leavesLoop(steps, from, loop) ? loopStartIndex(steps, loop) : next;
   }
   return next < steps.length ? next : -1;
 }

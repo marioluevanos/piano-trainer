@@ -1,4 +1,9 @@
-import { expectedNotes, type EngineOptions } from "./practiceEngine.ts";
+import {
+  expectedNotes,
+  leavesLoop,
+  loopStartIndex,
+  type EngineOptions,
+} from "./practiceEngine.ts";
 import type { Step } from "./types";
 
 export interface PlayNote {
@@ -56,12 +61,14 @@ export function planPlayback(
   opts: PlaybackOptions,
 ): PlaybackPlan {
   const { loop } = opts;
-  const first = loop
-    ? steps.findIndex((s) => s.measure >= loop.startMeasure)
-    : 0;
+  const first = loopStartIndex(steps, loop);
+  if (steps.length === 0 || first < 0) return EMPTY_PLAN;
+  // A loop runs on from its first step until the music leaves its measures.
   let last = steps.length - 1;
-  if (loop) while (last >= 0 && steps[last].measure > loop.endMeasure) last--;
-  if (steps.length === 0 || first < 0 || last < first) return EMPTY_PLAN;
+  if (loop) {
+    last = first;
+    while (!leavesLoop(steps, last, loop)) last++;
+  }
 
   const start = from >= first && from <= last ? from : first;
   const events: PlayEvent[] = [];

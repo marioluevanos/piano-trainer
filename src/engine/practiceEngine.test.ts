@@ -86,6 +86,31 @@ test("loop wraps back to the start measure", () => {
   assert.equal(s.completedSteps, 2);
 });
 
+test("loop wraps before a repeat replays the whole piece", () => {
+  // Both measures twice, as a repeat sign around the whole piece produces.
+  const repeated = [...steps, ...steps].map((s, index) => ({ ...s, index }));
+  const opts = {
+    handMode: "right" as const,
+    loop: { startMeasure: 0, endMeasure: 0 },
+  };
+  let s = jumpTo(repeated, 0, opts);
+  s = noteOn(s, repeated, 60, opts);
+  s = noteOn(s, repeated, 64, opts);
+  assert.equal(s.stepIndex, 0, "wrapped instead of running into measure 1");
+});
+
+test("loop wraps when a repeat jumps back before its start", () => {
+  // m0, m1, then a repeat back to m0.
+  const repeated = [...steps, ...steps].map((s, index) => ({ ...s, index }));
+  const opts = {
+    handMode: "right" as const,
+    loop: { startMeasure: 1, endMeasure: 1 },
+  };
+  let s = jumpTo(repeated, 2, opts);
+  s = noteOn(s, repeated, 67, opts);
+  assert.equal(s.stepIndex, 2, "wrapped to measure 1, not the repeat at m0");
+});
+
 test("piece finishes without a loop", () => {
   const opts = { handMode: "right" as const, loop: null };
   let s = jumpTo(steps, 0, opts);

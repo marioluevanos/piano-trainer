@@ -519,6 +519,16 @@ body,
   z-index: 1;
 }
 
+.status-retry {
+  margin-left: 8px;
+  padding: 0 8px;
+  font: inherit;
+  color: var(--text);
+  background: var(--control-bg);
+  border: 1px solid var(--control-border);
+  border-radius: 4px;
+}
+
 .score-area {
   flex: 1;
   overflow: auto;

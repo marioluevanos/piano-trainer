@@ -92,6 +92,29 @@ test("a loop covers its measures and lasts until the next measure", () => {
   assert.equal(plan.repeat, true);
 });
 
+// The same two measures played twice, as a repeat sign around the whole piece
+// produces. Timestamps jump back at the repeat, like OSMD's cursor.
+const repeated: Step[] = [...steps, ...steps].map((s, index) => ({ ...s, index }));
+
+test("a loop stops at its measures even when a repeat replays them later", () => {
+  const loop = { startMeasure: 0, endMeasure: 0 };
+  const plan = planPlayback(repeated, 0, { ...both, loop });
+  assert.deepEqual(
+    plan.events.map((e) => e.stepIndex),
+    [0, 1],
+  );
+  assert.equal(plan.length, 1);
+});
+
+test("a loop over the repeated measures plays both passes", () => {
+  const loop = { startMeasure: 0, endMeasure: 1 };
+  const plan = planPlayback(repeated, 0, { ...both, loop });
+  assert.deepEqual(
+    plan.events.map((e) => e.stepIndex),
+    [0, 1, 2, 4, 5, 6],
+  );
+});
+
 test("starts at the cursor when it is inside the range", () => {
   assert.equal(planPlayback(steps, 1, both).startOffset, 0.5);
   const loop = { startMeasure: 1, endMeasure: 1 };

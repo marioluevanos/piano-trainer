@@ -541,7 +541,18 @@ export default function App() {
                 ? "MIDI access denied"
                 : midi.status === "requesting"
                   ? "Requesting MIDI access…"
-                  : `MIDI error (${midi.error})`}
+                  : midi.status === "unavailable"
+                    ? "MIDI unavailable on this device — on-screen keys still work"
+                    : `MIDI error (${midi.error})`}
+          {(midi.status === "unavailable" || midi.status === "error") && (
+            <button
+              className="status-retry"
+              onClick={midi.retry}
+              title={midi.error ?? undefined}
+            >
+              Retry
+            </button>
+          )}
         </span>
         <span>
           {playback.playing

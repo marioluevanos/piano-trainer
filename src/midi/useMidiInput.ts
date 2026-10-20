@@ -1,10 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export type MidiStatus =
   | "unsupported"
   | "requesting"
   | "ready"
   | "denied"
+  /** The browser has Web MIDI but could not start it on this device. */
+  | "unavailable"
   | "error";
 
 export interface MidiInputInfo {
@@ -33,6 +35,14 @@ export function useMidiInput(handlers: MidiHandlers) {
   const [inputs, setInputs] = useState<MidiInputInfo[]>([]);
   /** Name and message of the error requestMIDIAccess rejected with, if any. */
   const [error, setError] = useState<string | null>(null);
+  /** Bumped by `retry` to request access again. */
+  const [attempt, setAttempt] = useState(0);
+
+  const retry = useCallback(() => {
+    setStatus("requesting");
+    setError(null);
+    setAttempt((n) => n + 1);
+  }, []);
 
   useEffect(() => {
     if (!("requestMIDIAccess" in navigator)) return;
@@ -78,10 +88,14 @@ export function useMidiInput(handlers: MidiHandlers) {
             ? err.message
             : String(err);
         setError([name, message].filter(Boolean).join(": ") || "unknown");
+        // Chrome on Android rejects with InvalidStateError ("Platform dependent
+        // initialization failed") when the system MIDI service cannot start.
         setStatus(
           name === "SecurityError" || name === "NotAllowedError"
             ? "denied"
-            : "error",
+            : name === "InvalidStateError" || name === "NotSupportedError"
+              ? "unavailable"
+              : "error",
         );
       });
 
@@ -92,7 +106,7 @@ export function useMidiInput(handlers: MidiHandlers) {
         access.inputs.forEach((input) => (input.onmidimessage = null));
       }
     };
-  }, []);
+  }, [attempt]);
 
-  return { status, inputs, error };
+  return { status, inputs, error, retry };
 }
