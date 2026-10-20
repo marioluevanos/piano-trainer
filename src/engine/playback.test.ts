@@ -10,6 +10,7 @@ const steps: Step[] = [
     index: 0,
     measure: 0,
     timestamp: 0,
+    measureEnd: 0.5,
     bpm: 120,
     notes: [
       { midi: 60, hand: "R", duration: 0.25 },
@@ -20,6 +21,7 @@ const steps: Step[] = [
     index: 1,
     measure: 0,
     timestamp: 0.25,
+    measureEnd: 0.5,
     bpm: 120,
     notes: [{ midi: 64, hand: "R", duration: 0.25 }],
   },
@@ -27,10 +29,11 @@ const steps: Step[] = [
     index: 2,
     measure: 1,
     timestamp: 0.5,
+    measureEnd: 1,
     bpm: 120,
     notes: [{ midi: 67, hand: "R", duration: 0.25 }],
   },
-  { index: 3, measure: 1, timestamp: 0.75, bpm: 120, notes: [] },
+  { index: 3, measure: 1, timestamp: 0.75, measureEnd: 1, bpm: 120, notes: [] },
 ];
 
 const both = { handMode: "both" as const, loop: null, speed: 1 };
@@ -128,4 +131,24 @@ test("stepAtTime finds the step sounding at a moment", () => {
   assert.equal(stepAtTime(plan, 0.5), 1);
   assert.equal(stepAtTime(plan, 10), 2);
   assert.equal(stepAtTime(plan, -1), -1);
+});
+
+// A first ending (m1) skipped on the second pass: m0, m1, m0, m2. Like OSMD's
+// cursor, timestamps jump back at the repeat and ahead over the skipped ending.
+const volta: Step[] = [0, 1, 0, 2].map((measure, index) => ({
+  index,
+  measure,
+  timestamp: measure * 0.5,
+  measureEnd: measure * 0.5 + 0.5,
+  bpm: 120,
+  notes: [{ midi: 60 + measure, hand: "R", duration: 0.5 }],
+}));
+
+test("skipping a volta ending adds no silence", () => {
+  const plan = planPlayback(volta, 0, both);
+  assert.deepEqual(
+    plan.events.map((e) => e.time),
+    [0, 1, 2, 3],
+  );
+  assert.equal(plan.length, 4);
 });

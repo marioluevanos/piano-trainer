@@ -51,6 +51,23 @@ function longestNote(step: Step): number {
 }
 
 /**
+ * Whole notes from `step` until `next` begins. Within a measure that is the
+ * timestamp difference; across a measure line it is the rest of this measure,
+ * since repeats and voltas make the next measure jump back or skip ahead.
+ */
+function stepGap(step: Step, next: Step | undefined): number {
+  if (next && next.measure === step.measure && next.timestamp > step.timestamp) {
+    return next.timestamp - step.timestamp;
+  }
+  const rest = step.measureEnd - step.timestamp;
+  if (next && rest > 0) return rest;
+  // No usable measure length; fall back to the timestamps, or this step's longest note.
+  return next && next.timestamp > step.timestamp
+    ? next.timestamp - step.timestamp
+    : longestNote(step);
+}
+
+/**
  * Lay out the notes to play, in seconds, for the loop range (or the whole
  * piece), honoring the hand mode and each step's tempo. Playback begins at
  * step `from` when it lies inside the range, otherwise at the range start.
@@ -91,13 +108,7 @@ export function planPlayback(
       lastNoteEnd = Math.max(lastNoteEnd, end);
     }
 
-    // A repeat sign can send the next step back in time; fall back to this step's longest note.
-    const next = steps[i + 1];
-    const gap =
-      next && next.timestamp > step.timestamp
-        ? next.timestamp - step.timestamp
-        : longestNote(step);
-    time += gap * seconds;
+    time += stepGap(step, steps[i + 1]) * seconds;
   }
 
   // A pass ends where the following measure begins, so a loop keeps its rhythm.

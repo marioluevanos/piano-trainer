@@ -28,24 +28,21 @@ import {
   type ImportedSong,
   type SongDetails,
 } from "./songs/library";
+import { useNavigation } from "./navigation/useNavigation";
 
 export default function App() {
   const library = useSongLibrary();
+  const { route, openSong, goHome } = useNavigation();
+  const practicing = route.page === "practice";
+
+  // The song being practiced, or on the home page the one practiced last.
   const [songId, setSongId] = useState(loadSelectedSongId);
   const song = library.songs.find((s) => s.id === songId);
   // Keyed on the id: the song objects are rebuilt whenever the list updates.
   const source = useMemo(() => song?.load(), [song?.id]);
-
-  // The app opens on the home page. Opening a song pushes a history entry, so
-  // the browser (or Android) back button returns to the song list.
-  const [practicing, setPracticing] = useState(false);
   useEffect(() => {
-    // A reload lands on the home page, so drop a stale practice entry.
-    if (history.state?.practice) history.replaceState(null, "");
-    const onPopState = () => setPracticing(!!history.state?.practice);
-    window.addEventListener("popstate", onPopState);
-    return () => window.removeEventListener("popstate", onPopState);
-  }, []);
+    if (songId) saveSelectedSongId(songId);
+  }, [songId]);
 
   // The home page follows the device; practice locks to landscape. Locking only
   // works where the browser allows it (an installed PWA or fullscreen).
@@ -67,19 +64,22 @@ export default function App() {
   const [onScreenSound, setOnScreenSound] = useState(true);
   const [speed, setSpeed] = useState(1);
 
-  const openSong = (id: string) => {
-    if (id !== songId) {
-      // Drop the previous song's steps so nothing acts on them until the new score is ready.
-      setSteps([]);
-      setMeasureCount(0);
+  // Follow the route while rendering, so opening a song, back/forward and a
+  // reload all start the practice page from a clean slate.
+  const routeSongId = practicing ? route.songId : null;
+  const [enteredSongId, setEnteredSongId] = useState<string | null>(null);
+  if (routeSongId !== enteredSongId) {
+    setEnteredSongId(routeSongId);
+    if (routeSongId) {
+      setScoreError(null);
+      if (routeSongId !== songId) {
+        // Drop the previous song's steps so nothing acts on them until the new score is ready.
+        setSongId(routeSongId);
+        setSteps([]);
+        setMeasureCount(0);
+      }
     }
-    setSongId(id);
-    saveSelectedSongId(id);
-    setScoreError(null);
-    history.pushState({ practice: true }, "");
-    setPracticing(true);
-  };
-  const goHome = () => history.back();
+  }
 
   const onAddSong = async (song: ImportedSong, details: SongDetails) => {
     const added = await library.addSong(song, details);
@@ -324,7 +324,9 @@ export default function App() {
           <p className="score-placeholder">
             {library.loading
               ? "Loading song…"
-              : "This song is no longer available."}
+              : library.user
+                ? "This song is no longer available."
+                : "This song is not available. If it is one of yours, sign in on the home page."}
           </p>
         )}
       </section>

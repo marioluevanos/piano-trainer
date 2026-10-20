@@ -21,6 +21,8 @@ export interface Step {
   measure: number;
   /** Position in whole notes from the start of the piece. */
   timestamp: number;
+  /** Where this step's measure ends, in whole notes from the start of the piece. */
+  measureEnd: number;
   /** Tempo at this step, in quarter notes per minute. */
   bpm: number;
   notes: StepNote[];

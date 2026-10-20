@@ -15,6 +15,7 @@ const steps: Step[] = [
     index: 0,
     measure: 0,
     timestamp: 0,
+    measureEnd: 0.5,
     bpm: 120,
     notes: [
       { midi: 60, hand: "R", duration: 0.25 },
@@ -25,6 +26,7 @@ const steps: Step[] = [
     index: 1,
     measure: 0,
     timestamp: 0.25,
+    measureEnd: 0.5,
     bpm: 120,
     notes: [{ midi: 64, hand: "R", duration: 0.25 }],
   },
@@ -32,13 +34,14 @@ const steps: Step[] = [
     index: 2,
     measure: 1,
     timestamp: 0.5,
+    measureEnd: 1,
     bpm: 120,
     notes: [
       { midi: 67, hand: "R", duration: 0.25 },
       { midi: 55, hand: "L", duration: 0.25 },
     ],
   },
-  { index: 3, measure: 1, timestamp: 0.75, bpm: 120, notes: [] },
+  { index: 3, measure: 1, timestamp: 0.75, measureEnd: 1, bpm: 120, notes: [] },
 ];
 
 test("wait mode advances only when every expected note is struck", () => {

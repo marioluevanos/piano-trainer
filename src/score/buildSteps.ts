@@ -59,10 +59,13 @@ export function buildSteps(osmd: OpenSheetMusicDisplay): Step[] {
       notes.push(stepNote);
     }
     const bpm = cursor.Iterator.CurrentBpm;
+    const measure = cursor.Iterator.CurrentMeasure;
     steps.push({
       index: steps.length,
       measure: cursor.Iterator.CurrentMeasureIndex,
       timestamp: cursor.Iterator.currentTimeStamp.RealValue,
+      measureEnd:
+        measure.AbsoluteTimestamp.RealValue + measure.Duration.RealValue,
       bpm: bpm > 0 ? bpm : DEFAULT_BPM,
       notes,
     });
