@@ -5,6 +5,7 @@ import {
   type ScoreClick,
   type ScoreInfo,
 } from "./components/ScoreView";
+import { HomePage } from "./components/HomePage";
 import { SettingsMenu } from "./components/SettingsMenu";
 import {
   expectedMidi,
@@ -28,27 +29,20 @@ import {
 export default function App() {
   const library = useSongLibrary();
   const [songId, setSongId] = useState(loadSelectedSongId);
-  const selectSong = (id: string) => {
-    setSongId(id);
-    saveSelectedSongId(id);
-  };
-  // Falls back to the first song if the remembered one was removed. Nothing is
-  // picked until the whole library is known, so a remembered song of the user's
-  // is not passed over while their list is still loading.
-  const song = library.loading
-    ? undefined
-    : (library.songs.find((s) => s.id === songId) ?? library.songs[0]);
+  const song = library.songs.find((s) => s.id === songId);
   // Keyed on the id: the song objects are rebuilt whenever the list updates.
   const source = useMemo(() => song?.load(), [song?.id]);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const onPickFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-    const added = await library.addSong(file);
-    if (added) selectSong(added.id);
-  };
+  // The app opens on the home page. Opening a song pushes a history entry, so
+  // the browser (or Android) back button returns to the song list.
+  const [practicing, setPracticing] = useState(false);
+  useEffect(() => {
+    // A reload lands on the home page, so drop a stale practice entry.
+    if (history.state?.practice) history.replaceState(null, "");
+    const onPopState = () => setPracticing(!!history.state?.practice);
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
 
   const [steps, setSteps] = useState<Step[]>([]);
   const [measureCount, setMeasureCount] = useState(0);
@@ -60,6 +54,26 @@ export default function App() {
   const [onScreenSound, setOnScreenSound] = useState(true);
   const [speed, setSpeed] = useState(1);
   const [toolbarOpen, setToolbarOpen] = useState(false);
+
+  const openSong = (id: string) => {
+    if (id !== songId) {
+      // Drop the previous song's steps so nothing acts on them until the new score is ready.
+      setSteps([]);
+      setMeasureCount(0);
+    }
+    setSongId(id);
+    saveSelectedSongId(id);
+    setScoreError(null);
+    setToolbarOpen(false);
+    history.pushState({ practice: true }, "");
+    setPracticing(true);
+  };
+  const goHome = () => history.back();
+
+  const onAddSong = async (file: File) => {
+    const added = await library.addSong(file);
+    if (added) openSong(added.id);
+  };
   const toolbarRef = useRef<HTMLElement>(null);
   const toolbarToggleRef = useRef<HTMLButtonElement>(null);
 
@@ -118,6 +132,9 @@ export default function App() {
       );
     },
   });
+  useEffect(() => {
+    if (!practicing) playback.stop();
+  }, [practicing, playback.stop]);
   const playingRef = useRef(playback.playing);
   playingRef.current = playback.playing;
 
@@ -279,6 +296,23 @@ export default function App() {
     else if (right) setHandMode("right");
   };
 
+  if (!practicing) {
+    return (
+      <HomePage
+        songs={library.songs}
+        lastSongId={songId}
+        loading={library.loading}
+        error={library.error}
+        user={library.user}
+        onOpen={openSong}
+        onAdd={onAddSong}
+        onRemove={library.removeSong}
+        onSignIn={library.signIn}
+        onSignOut={library.signOut}
+      />
+    );
+  }
+
   return (
     <div className="app">
       {/* Shown by CSS only on touch devices held in portrait. */}
@@ -311,25 +345,17 @@ export default function App() {
         className={`toolbar${toolbarOpen ? " open" : ""}`}
         inert={!toolbarOpen}
       >
-        <select
-          className="song-select"
-          value={song?.id ?? ""}
-          onChange={(e) => selectSong(e.target.value)}
-          aria-label="Song"
+        <button
+          className="icon-button"
+          onClick={goHome}
+          aria-label="Songs"
+          title="Back to the song list"
         >
-          {library.songs.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.title}
-            </option>
-          ))}
-        </select>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".musicxml,.xml,.mxl,application/vnd.recordare.musicxml+xml,application/vnd.recordare.musicxml"
-          hidden
-          onChange={onPickFile}
-        />
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+            <path fill="currentColor" d="M15.4 7.4 14 6l-6 6 6 6 1.4-1.4-4.6-4.6z" />
+          </svg>
+        </button>
+        <span className="toolbar-title">{song?.title}</span>
 
         <div className="toolbar-actions">
           <button
@@ -367,44 +393,7 @@ export default function App() {
 
           <SettingsMenu>
             <div className="settings-row">
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                title="Load a .musicxml, .xml or .mxl file"
-              >
-                Load song…
-              </button>
-              {song?.user && (
-                <button
-                  onClick={() => library.removeSong(song.id)}
-                  title="Remove this song from the library"
-                >
-                  Remove song
-                </button>
-              )}
               <button onClick={restart}>Restart</button>
-            </div>
-
-            <div className="settings-row">
-              {library.user ? (
-                <>
-                  <span className="account">
-                    {library.user.displayName ?? library.user.email}
-                  </span>
-                  <button
-                    onClick={library.signOut}
-                    title="Your songs stay in your account"
-                  >
-                    Sign out
-                  </button>
-                </>
-              ) : (
-                <button
-                  onClick={library.signIn}
-                  title="Keep the songs you load in your Google account, on every device"
-                >
-                  Sign in to sync songs
-                </button>
-              )}
             </div>
 
             <div className="settings-row">
@@ -506,9 +495,6 @@ export default function App() {
                 Sound
               </label>
             </div>
-            <div className="settings-row build-info">
-              Build {__BUILD_TIME__}
-            </div>
           </SettingsMenu>
         </div>
       </header>
@@ -525,7 +511,6 @@ export default function App() {
       </section>
 
       <section className="score-area">
-        {library.error && <p className="error">{library.error}</p>}
         {scoreError && (
           <p className="error">Could not load score: {scoreError}</p>
         )}
@@ -539,7 +524,7 @@ export default function App() {
           />
         ) : (
           <p className="score-placeholder">
-            {library.loading ? "Loading songs…" : "No songs yet. Load one from the settings menu."}
+            {library.loading ? "Loading song…" : "This song is no longer available."}
           </p>
         )}
       </section>

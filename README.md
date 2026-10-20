@@ -48,16 +48,16 @@ MusicXML ──► OpenSheetMusicDisplay ──► cursor walk ──► Step[]
 
 The app reads **MusicXML**, the standard exchange format for sheet music. Two ways to add a song:
 
-| | Load in the app | Shared library |
-|---|---|---|
-| How | **Load song…** button | `npm run import-songs`, then `npm run upload-songs` |
-| Formats | `.musicxml`, `.xml`, `.mxl` | `.musicxml`, `.xml`, `.mxl` |
-| Who sees it | You: this browser, or every device when signed in | Everyone, on every device |
-| Needs a redeploy | No | No |
+|                  | Load in the app                                   | Shared library                                      |
+| ---------------- | ------------------------------------------------- | --------------------------------------------------- |
+| How              | **Upload song** button                            | `npm run import-songs`, then `npm run upload-songs` |
+| Formats          | `.musicxml`, `.xml`, `.mxl`                       | `.musicxml`, `.xml`, `.mxl`                         |
+| Who sees it      | You: this browser, or every device when signed in | Everyone, on every device                           |
+| Needs a redeploy | No                                                | No                                                  |
 
 ### Load in the app
 
-Click **Load song…** and pick the file. Compressed `.mxl` works as is. Signed out, the song stays in that browser until you click **Remove**. Signed in (**Sign in to sync songs** in the settings menu), it is saved to your Google account in Firestore and shows up on every device; songs loaded while signed out move into the account at the next sign-in.
+Click **Upload song** and pick the file. Compressed `.mxl` works as is. Signed out, the song stays in that browser until you click **Remove**. Signed in (**Sign in to sync songs** in the settings menu), it is saved to your Google account in Firestore and shows up on every device; songs loaded while signed out move into the account at the next sign-in.
 
 ### Add to the shared library
 
