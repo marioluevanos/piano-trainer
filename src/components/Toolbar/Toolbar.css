@@ -1,0 +1,91 @@
+.toolbar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  align-items: center;
+  height: 48px;
+  flex-shrink: 0;
+  /* Leave room on the right for the fixed toolbar toggle. */
+  padding: 0 56px 0 8px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 4px 16px var(--shadow);
+  font-size: 14px;
+  transform: translateY(100%);
+  visibility: hidden;
+  transition:
+    transform 220ms ease,
+    visibility 0s linear 220ms;
+}
+
+.toolbar.open {
+  transform: translateY(0);
+  visibility: visible;
+  transition:
+    transform 220ms ease,
+    visibility 0s;
+}
+
+.toolbar-toggle {
+  position: fixed;
+  bottom: 4px;
+  right: 8px;
+  z-index: 11;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toolbar,
+  .toolbar.open {
+    transition: none;
+  }
+}
+
+.toolbar select {
+  font: inherit;
+  color: var(--text);
+  background: var(--control-bg);
+  border: 1px solid var(--control-border);
+  border-radius: 6px;
+  height: 36px;
+  padding: 0 10px;
+  cursor: pointer;
+}
+
+.toolbar-title {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.toolbar-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.hand-button {
+  font-weight: 700;
+}
+
+/* The left hand's toggle is lit in the left-hand color. */
+.hand-button.hand-L {
+  --accent: var(--left-hand);
+  --on-accent: var(--on-left-hand);
+}
+
+.settings-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  align-items: center;
+}

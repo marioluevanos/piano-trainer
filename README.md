@@ -39,8 +39,8 @@ MusicXML ──► OpenSheetMusicDisplay ──► cursor walk ──► Step[]
 
 - `src/score/buildSteps.ts` walks OSMD's cursor once after rendering and records, for each vertical position, every note that starts there with its MIDI number and hand (staff 1 = right, staff 2 = left). That array of `Step`s is the sync model between the score and the keyboard.
 - `src/engine/practiceEngine.ts` is a pure state machine (no DOM) implementing wait mode, loop wrap-around and hand filtering. It's covered by `practiceEngine.test.ts`.
-- `src/components/ScoreView.tsx` owns the OSMD instance and moves the visual cursor to whatever step index the engine is on.
-- `src/components/Keyboard.tsx` is an 88-key SVG; key states are `expected`, `correct`, `wrong`, `pressed`.
+- `src/components/ScoreView/ScoreView.tsx` owns the OSMD instance and moves the visual cursor to whatever step index the engine is on.
+- `src/components/Keyboard/Keyboard.tsx` is an 88-key SVG; key states are `expected`, `correct`, `wrong`, `pressed`.
 - `src/midi/useMidiInput.ts` subscribes to all Web MIDI inputs; `synth.ts` plays the Salamander Grand Piano samples in `public/piano/` for on-screen keys and playback.
 - `src/engine/playback.ts` turns the steps into timed notes for the current hand mode, loop and speed; `src/midi/usePlayback.ts` schedules them on the audio clock.
 

@@ -4,9 +4,10 @@ import {
   PointF2D,
   type GraphicalMeasure,
 } from "opensheetmusicdisplay";
-import { buildSteps } from "../score/buildSteps";
-import { Button } from "./Button/Button";
-import type { Step } from "../engine/types";
+import { buildSteps } from "../../score/buildSteps";
+import { Button } from "../Button/Button";
+import type { Step } from "../../engine/types";
+import "./ScoreView.css";
 
 /** Where a click landed on the score. */
 export interface ScoreClick {
@@ -67,10 +68,15 @@ export function ScoreView({
       cursor.reset();
       pos = 0;
     }
+    // Step the iterator directly and redraw once at the end. cursor.next()
+    // redraws and scrolls on every call, which stalls the page on long jumps
+    // such as a loop wrapping back to its start.
+    const from = pos;
     while (pos < target && !cursor.Iterator.EndReached) {
-      cursor.next();
+      cursor.Iterator.moveToNextVisibleVoiceEntry(false);
       pos++;
     }
+    if (pos !== from) cursor.update();
     cursorPosRef.current = pos;
   };
 

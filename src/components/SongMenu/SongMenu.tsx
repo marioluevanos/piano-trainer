@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { Button } from "./Button/Button";
+import { Button } from "../Button/Button";
+import "./SongMenu.css";
 
 interface Props {
   title: string;

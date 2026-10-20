@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { makeCover } from "../songs/cover";
-import type { SongDetails } from "../songs/library";
-import { Button } from "./Button/Button";
+import { makeCover } from "../../songs/cover";
+import type { SongDetails } from "../../songs/library";
+import { Button } from "../Button/Button";
+import "./SongDialog.css";
 
 interface Props {
   heading: string;

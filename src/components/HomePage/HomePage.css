@@ -1,0 +1,274 @@
+.account {
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.build-info {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* ---------- Home page (works in both orientations) ---------- */
+.home {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.home-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: center;
+  justify-content: space-between;
+  padding: max(12px, env(safe-area-inset-top))
+    max(16px, env(safe-area-inset-right)) 12px
+    max(16px, env(safe-area-inset-left));
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+
+.home-logo {
+  display: flex;
+  margin: 0;
+}
+
+.home-logo img {
+  display: block;
+  width: 32px;
+  height: 32px;
+  max-width: 32px;
+  max-height: 32px;
+}
+
+.home-account {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+  font-size: 14px;
+}
+
+.home-body {
+  flex: 1;
+  overflow-y: auto;
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 8px max(16px, env(safe-area-inset-right))
+    max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+}
+
+.home-section-head {
+  display: flex;
+  gap: 12px;
+  min-height: 36px;
+  align-items: center;
+  justify-content: space-between;
+  margin: 16px 0;
+}
+
+.home-section-tools {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.layout-toggle {
+  display: inline-flex;
+  border: 1px solid var(--control-border);
+  border-radius: 6px;
+  overflow: hidden;
+
+  & .button:first-child {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+
+  & .button:last-child {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+  }
+}
+
+.home-section-head h2 {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* One column in portrait; as many as fit when the screen is wide. */
+.song-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.song-list li {
+  display: flex;
+  min-width: 0;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.song-list li.last {
+  border-color: var(--accent);
+}
+
+.song-open {
+  flex: 1;
+  display: flex;
+  justify-content: flex-start;
+  gap: 12px;
+  min-width: 0;
+  min-height: 48px;
+  padding: 4px;
+  text-align: left;
+  border: none;
+  border-radius: 0;
+}
+
+.song-cover {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 4px 0 0 4px;
+  object-fit: cover;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--on-cover);
+}
+
+.cover-tone-0 {
+  background: linear-gradient(135deg, var(--cover-0), var(--control-bg));
+}
+
+.cover-tone-1 {
+  background: linear-gradient(135deg, var(--cover-1), var(--control-bg));
+}
+
+.cover-tone-2 {
+  background: linear-gradient(135deg, var(--cover-2), var(--control-bg));
+}
+
+.cover-tone-3 {
+  background: linear-gradient(135deg, var(--cover-3), var(--control-bg));
+}
+
+.cover-tone-4 {
+  background: linear-gradient(135deg, var(--cover-4), var(--control-bg));
+}
+
+.cover-tone-5 {
+  background: linear-gradient(135deg, var(--cover-5), var(--control-bg));
+}
+
+.song-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.song-title {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.song-badge {
+  font-size: 12px;
+  color: var(--accent);
+}
+
+.grid .song-badge {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  height: 32px;
+  top: 8px;
+  left: 8px;
+  background: var(--cover-scrim);
+  padding: 4px 12px;
+  border-radius: 3px;
+}
+
+.song-action {
+  flex: none;
+  align-self: center;
+}
+
+.song-action:last-child {
+  margin-right: 8px;
+}
+
+/* ---------- Grid layout: covers on top, actions in a menu over the cover ---------- */
+.song-list.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 600px) {
+  .song-list.grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.song-list.grid li {
+  position: relative;
+}
+
+.song-list.grid .song-open {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+}
+
+.song-list.grid .song-cover {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  font-size: 40px;
+  border-radius: 6px 6px 0 0;
+}
+
+.song-list.grid .song-text {
+  padding: 8px 4px;
+}
+
+.song-list.grid .song-title {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  white-space: normal;
+}
+
+.home-placeholder {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.home-error {
+  margin: 12px 0 0;
+  color: var(--wrong);
+}
+
+.home .build-info {
+  margin: 24px 0 0;
+}

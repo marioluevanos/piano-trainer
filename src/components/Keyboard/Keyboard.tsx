@@ -1,5 +1,6 @@
 import { useMemo } from "react";
-import type { Hand, KeyState } from "../engine/types";
+import type { Hand, KeyState } from "../../engine/types";
+import "./Keyboard.css";
 
 const FIRST_MIDI = 21; // A0
 const LAST_MIDI = 108; // C8
@@ -171,7 +172,7 @@ export function Keyboard({
               key={`l${k.midi}`}
               className={`key-label${hands?.has(k.midi) ? ` hand-${hands.get(k.midi)}` : ""}`}
               x={k.x + (k.black ? BLACK_W : WHITE_W) / 2}
-              y={-10}
+              y={-8}
               textAnchor="middle"
             >
               {labels.get(k.midi)}

@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Button } from "./components/Button/Button";
-import { Keyboard, noteName } from "./components/Keyboard";
+import { Keyboard, noteName } from "./components/Keyboard/Keyboard";
 import {
   ScoreView,
   type ScoreClick,
   type ScoreInfo,
-} from "./components/ScoreView";
-import { HomePage } from "./components/HomePage";
-import { SettingsMenu } from "./components/SettingsMenu";
+} from "./components/ScoreView/ScoreView";
+import { HomePage } from "./components/HomePage/HomePage";
+import { Status } from "./components/Status/Status";
+import { Toolbar } from "./components/Toolbar/Toolbar";
 import {
   expectedMidi,
   expectedNotes,
@@ -47,6 +47,16 @@ export default function App() {
     return () => window.removeEventListener("popstate", onPopState);
   }, []);
 
+  // The home page follows the device; practice locks to landscape. Locking only
+  // works where the browser allows it (an installed PWA or fullscreen).
+  useEffect(() => {
+    const orientation = screen.orientation as ScreenOrientation & {
+      lock?: (o: "landscape") => Promise<void>;
+    };
+    if (practicing) orientation.lock?.("landscape").catch(() => {});
+    else orientation.unlock?.();
+  }, [practicing]);
+
   const [steps, setSteps] = useState<Step[]>([]);
   const [measureCount, setMeasureCount] = useState(0);
   const [scoreError, setScoreError] = useState<string | null>(null);
@@ -56,7 +66,6 @@ export default function App() {
   const [fullKeyboard, setFullKeyboard] = useState(true);
   const [onScreenSound, setOnScreenSound] = useState(true);
   const [speed, setSpeed] = useState(1);
-  const [toolbarOpen, setToolbarOpen] = useState(false);
 
   const openSong = (id: string) => {
     if (id !== songId) {
@@ -67,7 +76,6 @@ export default function App() {
     setSongId(id);
     saveSelectedSongId(id);
     setScoreError(null);
-    setToolbarOpen(false);
     history.pushState({ practice: true }, "");
     setPracticing(true);
   };
@@ -77,40 +85,6 @@ export default function App() {
     const added = await library.addSong(song, details);
     openSong(added.id);
   };
-  const toolbarRef = useRef<HTMLElement>(null);
-  const toolbarToggleRef = useRef<HTMLButtonElement>(null);
-
-  // Hide the toolbar when the player taps or scrolls anywhere else. Scrolling is
-  // detected from wheel/touch gestures rather than `scroll` events, so the score
-  // auto-scrolling to follow the cursor does not close it.
-  useEffect(() => {
-    if (!toolbarOpen) return;
-    const isOutside = (e: Event) => {
-      const target = e.target as Node;
-      return (
-        !toolbarRef.current?.contains(target) &&
-        !toolbarToggleRef.current?.contains(target)
-      );
-    };
-    const close = (e: Event) => {
-      if (isOutside(e)) setToolbarOpen(false);
-    };
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setToolbarOpen(false);
-    };
-    const opts = { capture: true, passive: true };
-    document.addEventListener("pointerdown", close, opts);
-    document.addEventListener("wheel", close, opts);
-    document.addEventListener("touchmove", close, opts);
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("pointerdown", close, opts);
-      document.removeEventListener("wheel", close, opts);
-      document.removeEventListener("touchmove", close, opts);
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [toolbarOpen]);
-
   // Fetch the piano samples up front so the first note does not fall back to the plain tone.
   useEffect(() => {
     void loadPiano();
@@ -232,20 +206,6 @@ export default function App() {
   };
 
   const currentMeasure = currentStep ? currentStep.measure : 0;
-  const measureOptions = Array.from({ length: measureCount }, (_, i) => i);
-
-  const setLoopFromHere = (which: "start" | "end") => {
-    setLoop((l) => {
-      const start = which === "start" ? currentMeasure : (l?.startMeasure ?? 0);
-      const end =
-        which === "end" ? currentMeasure : (l?.endMeasure ?? measureCount - 1);
-      return {
-        startMeasure: Math.min(start, end),
-        endMeasure: Math.max(start, end),
-      };
-    });
-  };
-
   const restart = () => {
     playback.stop();
     setEngine(
@@ -288,17 +248,6 @@ export default function App() {
     if (playback.playing) startPlayback(value);
   };
 
-  // Left and right are independent toggles; at least one hand always stays selected.
-  const leftOn = handMode !== "right";
-  const rightOn = handMode !== "left";
-  const toggleHand = (hand: "left" | "right") => {
-    const left = hand === "left" ? !leftOn : leftOn;
-    const right = hand === "right" ? !rightOn : rightOn;
-    if (left && right) setHandMode("both");
-    else if (left) setHandMode("left");
-    else if (right) setHandMode("right");
-  };
-
   if (!practicing) {
     return (
       <HomePage
@@ -327,190 +276,26 @@ export default function App() {
         </svg>
         <p>Rotate your device to landscape</p>
       </div>
-      <Button
-        ref={toolbarToggleRef}
-        className="toolbar-toggle"
-        size="lg"
-        icon
-        round
-        active={toolbarOpen}
-        onClick={() => setToolbarOpen((o) => !o)}
-        aria-label={toolbarOpen ? "Hide toolbar" : "Show toolbar"}
-        aria-expanded={toolbarOpen}
-        title={toolbarOpen ? "Hide toolbar" : "Show toolbar"}
-      >
-        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-          <path
-            fill="currentColor"
-            d="M19.14 12.94a7.5 7.5 0 0 0 0-1.88l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.03 7.03 0 0 0-1.63-.94l-.36-2.54A.5.5 0 0 0 13.9 2.4h-3.84a.5.5 0 0 0-.49.42l-.36 2.54c-.59.24-1.13.56-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.67 8.88a.5.5 0 0 0 .12.64l2.03 1.58a7.5 7.5 0 0 0 0 1.88l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32c.13.22.39.3.6.22l2.39-.96c.5.38 1.04.7 1.63.94l.36 2.54c.04.24.25.42.49.42h3.84c.24 0 .45-.18.49-.42l.36-2.54c.59-.24 1.13-.56 1.63-.94l2.39.96c.22.08.47 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58ZM12 15.6a3.6 3.6 0 1 1 0-7.2 3.6 3.6 0 0 1 0 7.2Z"
-          />
-        </svg>
-      </Button>
-
-      {/* Slides in from the top while open; inert while hidden so it cannot be tabbed into. */}
-      <header
-        ref={toolbarRef}
-        className={`toolbar${toolbarOpen ? " open" : ""}`}
-        inert={!toolbarOpen}
-      >
-        <Button
-          icon
-          onClick={goHome}
-          aria-label="Songs"
-          title="Back to the song list"
-        >
-          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-            <path fill="currentColor" d="M15.4 7.4 14 6l-6 6 6 6 1.4-1.4-4.6-4.6z" />
-          </svg>
-        </Button>
-        <span className="toolbar-title">{song?.title}</span>
-
-        <div className="toolbar-actions">
-          <Button
-            icon
-            active={playback.playing}
-            onClick={togglePlayback}
-            disabled={steps.length === 0}
-            aria-label={playback.playing ? "Stop" : "Play"}
-            title="Play the song from the cursor (the selected hands only)"
-          >
-            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-              <path
-                fill="currentColor"
-                d={playback.playing ? "M6 6h12v12H6z" : "M8 5v14l11-7z"}
-              />
-            </svg>
-          </Button>
-          <Button
-            className="hand-button hand-L"
-            icon
-            active={leftOn}
-            onClick={() => toggleHand("left")}
-            aria-pressed={leftOn}
-            aria-label="Left hand"
-            title="Left hand"
-          >
-            L
-          </Button>
-          <Button
-            className="hand-button"
-            icon
-            active={rightOn}
-            onClick={() => toggleHand("right")}
-            aria-pressed={rightOn}
-            aria-label="Right hand"
-            title="Right hand"
-          >
-            R
-          </Button>
-
-          <SettingsMenu>
-            <div className="settings-row">
-              <Button onClick={restart}>Restart</Button>
-            </div>
-
-            <div className="settings-row">
-              <label>
-                Loop
-                <select
-                  value={loop ? loop.startMeasure : ""}
-                  onChange={(e) => {
-                    // "off" has an empty value, which Number() would turn into measure 1.
-                    if (e.target.value === "") return setLoop(null);
-                    const start = Number(e.target.value);
-                    setLoop({
-                      startMeasure: start,
-                      endMeasure: Math.max(start, loop?.endMeasure ?? start),
-                    });
-                  }}
-                >
-                  <option value="">off</option>
-                  {measureOptions.map((i) => (
-                    <option key={i} value={i}>
-                      m. {i + 1}
-                    </option>
-                  ))}
-                </select>
-                →
-                <select
-                  value={loop ? loop.endMeasure : ""}
-                  disabled={!loop}
-                  onChange={(e) =>
-                    setLoop((l) =>
-                      l
-                        ? {
-                            ...l,
-                            endMeasure: Math.max(
-                              l.startMeasure,
-                              Number(e.target.value),
-                            ),
-                          }
-                        : l,
-                    )
-                  }
-                >
-                  <option value="">—</option>
-                  {measureOptions.map((i) => (
-                    <option key={i} value={i}>
-                      m. {i + 1}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-            <div className="settings-row">
-              <Button
-                onClick={() => setLoopFromHere("start")}
-                title="Set loop start to the current measure"
-              >
-                Start here
-              </Button>
-              <Button
-                onClick={() => setLoopFromHere("end")}
-                title="Set loop end to the current measure"
-              >
-                End here
-              </Button>
-              {loop && <Button onClick={() => setLoop(null)}>Clear</Button>}
-            </div>
-
-            <div className="settings-row">
-              <label>
-                Speed
-                <select
-                  value={speed}
-                  onChange={(e) => changeSpeed(Number(e.target.value))}
-                >
-                  {[0.5, 0.75, 1, 1.25].map((v) => (
-                    <option key={v} value={v}>
-                      {v * 100}%
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-
-            <div className="settings-row">
-              <label>
-                <input
-                  type="checkbox"
-                  checked={fullKeyboard}
-                  onChange={(e) => setFullKeyboard(e.target.checked)}
-                />
-                88 keys
-              </label>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={onScreenSound}
-                  onChange={(e) => setOnScreenSound(e.target.checked)}
-                />
-                Sound
-              </label>
-            </div>
-          </SettingsMenu>
-        </div>
-      </header>
+      <Toolbar
+        title={song?.title}
+        playing={playback.playing}
+        canPlay={steps.length > 0}
+        handMode={handMode}
+        loop={loop}
+        currentMeasure={currentMeasure}
+        measureCount={measureCount}
+        speed={speed}
+        fullKeyboard={fullKeyboard}
+        sound={onScreenSound}
+        onHome={goHome}
+        onTogglePlayback={togglePlayback}
+        onRestart={restart}
+        onHandModeChange={setHandMode}
+        onLoopChange={setLoop}
+        onSpeedChange={changeSpeed}
+        onFullKeyboardChange={setFullKeyboard}
+        onSoundChange={setOnScreenSound}
+      />
 
       <section className="keyboard-area">
         <Keyboard
@@ -537,52 +322,24 @@ export default function App() {
           />
         ) : (
           <p className="score-placeholder">
-            {library.loading ? "Loading song…" : "This song is no longer available."}
+            {library.loading
+              ? "Loading song…"
+              : "This song is no longer available."}
           </p>
         )}
       </section>
 
-      <section className="status">
-        <span>
-          {midi.status === "ready"
-            ? midi.inputs.length
-              ? `MIDI: ${midi.inputs.map((i) => i.name).join(", ")}`
-              : "MIDI ready — no keyboard connected"
-            : midi.status === "unsupported"
-              ? "Web MIDI not supported in this browser"
-              : midi.status === "denied"
-                ? "MIDI access denied"
-                : midi.status === "requesting"
-                  ? "Requesting MIDI access…"
-                  : midi.status === "unavailable"
-                    ? "MIDI unavailable on this device — on-screen keys still work"
-                    : `MIDI error (${midi.error})`}
-          {midi.status === "unavailable" && midi.error && (
-            <span className="status-error">{midi.error}</span>
-          )}
-          {(midi.status === "unavailable" || midi.status === "error") && (
-            <Button
-              className="status-retry"
-              size="xs"
-              onClick={midi.retry}
-              title={midi.error ?? undefined}
-            >
-              Retry
-            </Button>
-          )}
-        </span>
-        <span>
-          {playback.playing
-            ? `Playing…${loop ? ` · loop ${loop.startMeasure + 1}–${loop.endMeasure + 1}` : ""}`
-            : engine.finished
-              ? "Finished! 🎉"
-              : steps.length
-                ? `Measure ${currentMeasure + 1} / ${measureCount}${loop ? ` · loop ${loop.startMeasure + 1}–${loop.endMeasure + 1}` : ""}`
-                : "Loading score…"}
-          {" · "}
-          {engine.completedSteps} played, {engine.wrongNotes} wrong
-        </span>
-      </section>
+      <Status
+        midi={midi}
+        playing={playback.playing}
+        finished={engine.finished}
+        loaded={steps.length > 0}
+        loop={loop}
+        currentMeasure={currentMeasure}
+        measureCount={measureCount}
+        completedSteps={engine.completedSteps}
+        wrongNotes={engine.wrongNotes}
+      />
     </div>
   );
 }

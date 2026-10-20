@@ -1,0 +1,29 @@
+/* Inset over the cover's top-right corner (card border + padding + a gap). */
+.song-menu {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 1;
+}
+
+.song-menu.open {
+  z-index: 3;
+}
+
+.song-menu-panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  min-width: 128px;
+  padding: 4px;
+  background: var(--panel);
+  border: 1px solid var(--control-border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px var(--shadow);
+}
+
+.song-menu-panel .button {
+  justify-content: flex-start;
+}

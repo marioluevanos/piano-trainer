@@ -1,11 +1,12 @@
 import { useRef, useState } from "react";
 import type { User } from "firebase/auth";
-import type { Song } from "../songs";
-import { useCoverUrl } from "../songs/cover";
-import { readSongFile, type ImportedSong, type SongDetails } from "../songs/library";
-import { Button } from "./Button/Button";
-import { SongDialog } from "./SongDialog";
-import { SongMenu } from "./SongMenu";
+import type { Song } from "../../songs";
+import { useCoverUrl } from "../../songs/cover";
+import { readSongFile, type ImportedSong, type SongDetails } from "../../songs/library";
+import { Button } from "../Button/Button";
+import { SongDialog } from "../SongDialog/SongDialog";
+import { SongMenu } from "../SongMenu/SongMenu";
+import "./HomePage.css";
 
 type Layout = "list" | "grid";
 
@@ -44,7 +45,7 @@ interface Props {
   onSignOut: () => void;
 }
 
-/** Placeholder colors (cover-tone-N in styles.css) for songs without a cover. */
+/** Placeholder colors (cover-tone-N in HomePage.css) for songs without a cover. */
 const TONES = 6;
 
 function tone(id: string) {

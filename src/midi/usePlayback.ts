@@ -7,8 +7,12 @@ import {
 import type { Step } from "../engine/types";
 import { audioNow, synthSchedule, synthStopScheduled } from "./synth";
 
-/** Seconds of audio scheduled ahead of the clock. */
-const LOOKAHEAD = 0.2;
+/**
+ * Seconds of audio scheduled ahead of the clock. Generous so that a busy main
+ * thread (score redraws, scrolling, React renders) never lets the audio run
+ * dry; stopping cancels notes that have not started yet.
+ */
+const LOOKAHEAD = 1.5;
 const TICK_MS = 25;
 /** Delay before the first note so it is not clipped. */
 const LEAD_IN = 0.1;

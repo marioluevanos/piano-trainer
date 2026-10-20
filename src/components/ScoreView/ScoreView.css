@@ -1,0 +1,56 @@
+.score {
+  padding: 8px;
+  cursor: pointer;
+}
+
+/* Staff lines are the paths directly inside each "vf-measure" group; VexFlow
+   draws each note's ledger lines in a "vf-ledgers" group. OSMD's own ledger
+   line color is ignored for default-colored notes, so set both here. */
+.score .vf-measure > path,
+.score .vf-ledgers path {
+  stroke: var(--score-ledger-line);
+}
+
+/* Zero-height sticky bar so the info button floats over the score without
+   taking vertical space, and stays visible while scrolling. */
+.score-info {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  padding-right: 8px;
+  /* The info button takes the sheet music's palette. */
+  --text: var(--score-muted);
+  --control-bg: color-mix(in srgb, var(--score-surface) 85%, transparent);
+  --control-border: var(--score-border);
+  --accent: var(--score-accent);
+  --on-accent: var(--score-surface);
+}
+
+.score-info-button {
+  margin-top: 8px;
+}
+
+.score-info-panel {
+  margin-top: 6px;
+  max-width: min(360px, calc(100vw - 32px));
+  padding: 12px 14px;
+  background: var(--score-surface);
+  border: 1px solid var(--score-border);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px var(--score-shadow);
+}
+
+.score-info-panel h2 {
+  margin: 0 0 4px;
+  font-size: 1.05rem;
+}
+
+.score-info-panel p {
+  margin: 2px 0 0;
+  color: var(--score-muted);
+  font-size: 0.9rem;
+}

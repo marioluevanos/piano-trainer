@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Button } from "./Button/Button";
+import { Button } from "../Button/Button";
+import "./SettingsMenu.css";
 
 /** A sliders button that opens a popover panel holding the less frequently used controls. */
 export function SettingsMenu({ children }: { children: ReactNode }) {
