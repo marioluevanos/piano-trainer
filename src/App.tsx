@@ -51,6 +51,39 @@ export default function App() {
   const [onScreenSound, setOnScreenSound] = useState(true);
   const [speed, setSpeed] = useState(1);
   const [toolbarOpen, setToolbarOpen] = useState(false);
+  const toolbarRef = useRef<HTMLElement>(null);
+  const toolbarToggleRef = useRef<HTMLButtonElement>(null);
+
+  // Hide the toolbar when the player taps or scrolls anywhere else. Scrolling is
+  // detected from wheel/touch gestures rather than `scroll` events, so the score
+  // auto-scrolling to follow the cursor does not close it.
+  useEffect(() => {
+    if (!toolbarOpen) return;
+    const isOutside = (e: Event) => {
+      const target = e.target as Node;
+      return (
+        !toolbarRef.current?.contains(target) &&
+        !toolbarToggleRef.current?.contains(target)
+      );
+    };
+    const close = (e: Event) => {
+      if (isOutside(e)) setToolbarOpen(false);
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setToolbarOpen(false);
+    };
+    const opts = { capture: true, passive: true };
+    document.addEventListener("pointerdown", close, opts);
+    document.addEventListener("wheel", close, opts);
+    document.addEventListener("touchmove", close, opts);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", close, opts);
+      document.removeEventListener("wheel", close, opts);
+      document.removeEventListener("touchmove", close, opts);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [toolbarOpen]);
 
   // Fetch the piano samples up front so the first note does not fall back to the plain tone.
   useEffect(() => {
@@ -234,6 +267,7 @@ export default function App() {
   return (
     <div className="app">
       <button
+        ref={toolbarToggleRef}
         className={`toolbar-toggle${toolbarOpen ? " active" : ""}`}
         onClick={() => setToolbarOpen((o) => !o)}
         aria-label={toolbarOpen ? "Hide toolbar" : "Show toolbar"}
@@ -250,6 +284,7 @@ export default function App() {
 
       {/* Slides in from the top while open; inert while hidden so it cannot be tabbed into. */}
       <header
+        ref={toolbarRef}
         className={`toolbar${toolbarOpen ? " open" : ""}`}
         inert={!toolbarOpen}
       >
