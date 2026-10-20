@@ -1,7 +1,19 @@
 import { useEffect, useRef, useState } from "react";
-import { OpenSheetMusicDisplay, PointF2D } from "opensheetmusicdisplay";
+import {
+  OpenSheetMusicDisplay,
+  PointF2D,
+  type GraphicalMeasure,
+} from "opensheetmusicdisplay";
 import { buildSteps } from "../score/buildSteps";
 import type { Step } from "../engine/types";
+
+/** Where a click landed on the score. */
+export interface ScoreClick {
+  /** Source measure index. */
+  measure: number;
+  /** Absolute timestamp (whole notes) of the clicked note, or null if the click missed every note. */
+  timestamp: number | null;
+}
 
 export interface ScoreInfo {
   steps: Step[];
@@ -16,7 +28,8 @@ interface ScoreViewProps {
   cursorStep: number;
   onReady: (info: ScoreInfo) => void;
   /** Called with the source measure index when the user clicks a measure. */
-  onMeasureClick?: (measure: number) => void;
+  /** Called when the user clicks the score, with the measure and note clicked. */
+  onScoreClick?: (target: ScoreClick) => void;
   onError?: (message: string) => void;
 }
 
@@ -24,7 +37,7 @@ export function ScoreView({
   source,
   cursorStep,
   onReady,
-  onMeasureClick,
+  onScoreClick,
   onError,
 }: ScoreViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -33,8 +46,8 @@ export function ScoreView({
   const readyRef = useRef(false);
   const onReadyRef = useRef(onReady);
   onReadyRef.current = onReady;
-  const onMeasureClickRef = useRef(onMeasureClick);
-  onMeasureClickRef.current = onMeasureClick;
+  const onScoreClickRef = useRef(onScoreClick);
+  onScoreClickRef.current = onScoreClick;
   const onErrorRef = useRef(onError);
   onErrorRef.current = onError;
   const cursorStepRef = useRef(cursorStep);
@@ -88,6 +101,7 @@ export function ScoreView({
       .load(source)
       .then(() => {
         if (disposed) return;
+        applyScoreColors(osmd, el);
         osmd.render();
         osmd.cursor.show();
         const sheet = osmd.Sheet;
@@ -123,10 +137,25 @@ export function ScoreView({
 
   const handleClick = (e: React.MouseEvent) => {
     const osmd = osmdRef.current;
-    if (!osmd || !readyRef.current || !onMeasureClickRef.current) return;
-    const measure = measureAt(osmd, e.clientX, e.clientY);
-    if (measure !== null) onMeasureClickRef.current(measure);
+    if (!osmd || !readyRef.current || !onScoreClickRef.current) return;
+    const target = clickTarget(osmd, e.clientX, e.clientY);
+    if (target) onScoreClickRef.current(target);
   };
+
+  // Redraw in the new colors when the system switches between light and dark.
+  // render() keeps the cursor where it was.
+  useEffect(() => {
+    const query = window.matchMedia("(prefers-color-scheme: dark)");
+    const onChange = () => {
+      const osmd = osmdRef.current;
+      const el = containerRef.current;
+      if (!osmd || !el || !readyRef.current) return;
+      applyScoreColors(osmd, el);
+      osmd.render();
+    };
+    query.addEventListener("change", onChange);
+    return () => query.removeEventListener("change", onChange);
+  }, []);
 
   // Move the visual cursor to the requested step.
   useEffect(() => {
@@ -186,18 +215,29 @@ export function ScoreView({
   );
 }
 
+/** Colors the notation with --score-text, which follows the system color scheme. */
+function applyScoreColors(osmd: OpenSheetMusicDisplay, el: HTMLElement) {
+  const color = getComputedStyle(el).getPropertyValue("--score-text").trim();
+  osmd.setOptions({ defaultColorMusic: color });
+}
+
 /** Extra hit area above and below each system, in OSMD units (10px each). */
 const SYSTEM_PADDING = 2;
 
+/** How far left or right of a note's center a click still selects it, in OSMD units. */
+const NOTE_HIT_RADIUS = 1.5;
+
 /**
- * Source measure index under a click, or null. A measure spans every staff of
- * its system, so clicks between the treble and bass staves count too.
+ * Measure and note under a click, or null. A measure spans every staff of its
+ * system, so clicks between the treble and bass staves count too. The note is
+ * matched by horizontal position only, so a click above or below a chord
+ * still selects it.
  */
-function measureAt(
+function clickTarget(
   osmd: OpenSheetMusicDisplay,
   clientX: number,
   clientY: number,
-): number | null {
+): ScoreClick | null {
   const sheet = osmd.GraphicSheet;
   const { x, y } = sheet.svgToOsmd(
     sheet.domToSvg(new PointF2D(clientX, clientY)),
@@ -225,8 +265,30 @@ function measureAt(
       y >= top - SYSTEM_PADDING &&
       y <= bottom + SYSTEM_PADDING
     ) {
-      return index;
+      return { measure: index, timestamp: noteAt(staffMeasures, x) };
     }
   }
   return null;
+}
+
+/** Absolute timestamp of the note nearest to x across a measure's staves, if close enough. */
+function noteAt(
+  staffMeasures: GraphicalMeasure[],
+  x: number,
+): number | null {
+  let best: number | null = null;
+  let bestDistance = NOTE_HIT_RADIUS;
+  for (const gm of staffMeasures) {
+    for (const entry of gm?.staffEntries ?? []) {
+      const box = entry.PositionAndShape;
+      const center =
+        box.AbsolutePosition.x + (box.BorderLeft + box.BorderRight) / 2;
+      const distance = Math.abs(center - x);
+      if (distance <= bestDistance) {
+        bestDistance = distance;
+        best = entry.getAbsoluteTimestamp().RealValue;
+      }
+    }
+  }
+  return best;
 }

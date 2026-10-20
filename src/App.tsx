@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Keyboard, noteName } from "./components/Keyboard";
-import { ScoreView, type ScoreInfo } from "./components/ScoreView";
+import {
+  ScoreView,
+  type ScoreClick,
+  type ScoreInfo,
+} from "./components/ScoreView";
 import { SettingsMenu } from "./components/SettingsMenu";
 import {
   expectedMidi,
@@ -235,9 +239,15 @@ export default function App() {
     playback.play(steps, start, { handMode, loop, speed: playSpeed });
   };
 
-  // Jump to the start of a clicked measure; playback continues from there.
-  const seekToMeasure = (measure: number) => {
-    const i = steps.findIndex((s) => s.measure >= measure);
+  // Jump to a clicked note, or the start of the measure when the click missed
+  // every note; playback continues from there.
+  const seekTo = ({ measure, timestamp }: ScoreClick) => {
+    const i =
+      timestamp === null
+        ? steps.findIndex((s) => s.measure >= measure)
+        : steps.findIndex(
+            (s) => s.measure === measure && s.timestamp >= timestamp - 1e-6,
+          );
     if (i < 0) return;
     const next = jumpTo(steps, i, { handMode, loop });
     setEngine(next);
@@ -266,6 +276,14 @@ export default function App() {
 
   return (
     <div className="app">
+      {/* Shown by CSS only on touch devices held in portrait. */}
+      <div className="rotate-prompt" role="alert">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="7" y="2" width="10" height="20" rx="2" />
+          <path d="M3 9a9 9 0 0 1 4-5M21 15a9 9 0 0 1-4 5" />
+        </svg>
+        <p>Rotate your device to landscape</p>
+      </div>
       <button
         ref={toolbarToggleRef}
         className={`toolbar-toggle${toolbarOpen ? " active" : ""}`}
@@ -476,32 +494,6 @@ export default function App() {
           onNoteOn={onScreenNoteOn}
           onNoteOff={onScreenNoteOff}
         />
-        <div className="status">
-          <span>
-            {midi.status === "ready"
-              ? midi.inputs.length
-                ? `MIDI: ${midi.inputs.map((i) => i.name).join(", ")}`
-                : "MIDI ready — no keyboard connected"
-              : midi.status === "unsupported"
-                ? "Web MIDI not supported in this browser"
-                : midi.status === "denied"
-                  ? "MIDI access denied"
-                  : midi.status === "requesting"
-                    ? "Requesting MIDI access…"
-                    : "MIDI error"}
-          </span>
-          <span>
-            {playback.playing
-              ? "Playing…"
-              : engine.finished
-                ? "Finished! 🎉"
-                : steps.length
-                  ? `Measure ${currentMeasure + 1} / ${measureCount}${loop ? ` · loop ${loop.startMeasure + 1}–${loop.endMeasure + 1}` : ""}`
-                  : "Loading score…"}
-            {" · "}
-            {engine.completedSteps} played, {engine.wrongNotes} wrong
-          </span>
-        </div>
       </section>
 
       <section className="score-area">
@@ -513,9 +505,36 @@ export default function App() {
           source={source}
           cursorStep={engine.stepIndex}
           onReady={handleReady}
-          onMeasureClick={seekToMeasure}
+          onScoreClick={seekTo}
           onError={setScoreError}
         />
+      </section>
+
+      <section className="status">
+        <span>
+          {midi.status === "ready"
+            ? midi.inputs.length
+              ? `MIDI: ${midi.inputs.map((i) => i.name).join(", ")}`
+              : "MIDI ready — no keyboard connected"
+            : midi.status === "unsupported"
+              ? "Web MIDI not supported in this browser"
+              : midi.status === "denied"
+                ? "MIDI access denied"
+                : midi.status === "requesting"
+                  ? "Requesting MIDI access…"
+                  : "MIDI error"}
+        </span>
+        <span>
+          {playback.playing
+            ? "Playing…"
+            : engine.finished
+              ? "Finished! 🎉"
+              : steps.length
+                ? `Measure ${currentMeasure + 1} / ${measureCount}${loop ? ` · loop ${loop.startMeasure + 1}–${loop.endMeasure + 1}` : ""}`
+                : "Loading score…"}
+          {" · "}
+          {engine.completedSteps} played, {engine.wrongNotes} wrong
+        </span>
       </section>
     </div>
   );

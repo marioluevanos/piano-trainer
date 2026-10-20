@@ -21,7 +21,8 @@
   --key-white: #f4f4f5;
   --key-black: #1b1d24;
   --score-bg: #fafafa;
-  --score-text: #111;
+  --score-text: #111111;
+  --score-ledger-line: #71717a;
   --score-surface: #fff;
   --score-border: #d4d4d8;
   --score-muted: #52525b;
@@ -35,6 +36,25 @@
     Roboto,
     sans-serif;
   color-scheme: dark;
+}
+
+/* Dark mode applies to the sheet music only; the UI and keyboard stay as is. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --score-bg: #242424;
+    --score-text: #e4e4e7;
+    --score-ledger-line: #888;
+    --score-surface: #1c1f27;
+    --score-border: #343949;
+    --score-muted: #a1a1aa;
+    --score-accent: #2dd4bf;
+    --score-shadow: rgb(0 0 0 / 0.5);
+    --score-error: #f87171;
+  }
+
+  .score-area {
+    color-scheme: dark;
+  }
 }
 
 * {
@@ -309,6 +329,14 @@ body,
   cursor: pointer;
 }
 
+/* Staff lines are the paths directly inside each "vf-measure" group; VexFlow
+   draws each note's ledger lines in a "vf-ledgers" group. OSMD's own ledger
+   line color is ignored for default-colored notes, so set both here. */
+.score .vf-measure > path,
+.score .vf-ledgers path {
+  stroke: var(--score-ledger-line);
+}
+
 /* Zero-height sticky bar so the info button floats over the score without
    taking vertical space, and stays visible while scrolling. */
 .score-info {
@@ -370,5 +398,61 @@ body,
 @media (max-width: 640px) {
   .keyboard {
     max-height: 26vh;
+  }
+}
+
+.rotate-prompt {
+  display: none;
+}
+
+@media (orientation: portrait) and (pointer: coarse) {
+  .rotate-prompt {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    background: var(--bg);
+    color: var(--text);
+    text-align: center;
+  }
+
+  .rotate-prompt svg {
+    width: 64px;
+    height: 64px;
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    animation: rotate-hint 2s ease-in-out infinite;
+  }
+
+  .rotate-prompt p {
+    margin: 0;
+    color: var(--muted);
+  }
+}
+
+@keyframes rotate-hint {
+  0%,
+  20% {
+    transform: rotate(0deg);
+  }
+  50%,
+  70% {
+    transform: rotate(-90deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rotate-prompt svg {
+    animation: none;
   }
 }
