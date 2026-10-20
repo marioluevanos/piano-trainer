@@ -96,6 +96,11 @@ export function ScoreView({
       followCursor: true,
       cursorsOptions: [{ type: 0, color: accent, alpha: 0.45, follow: true }],
     });
+    // OSMD's default page margins are 5 units (50px) per side, which wastes a
+    // third of a phone's width. The .score padding already keeps notes off the edge.
+    osmd.EngravingRules.PageTopMargin = 1;
+    osmd.EngravingRules.PageLeftMargin = 2;
+    osmd.EngravingRules.PageRightMargin = 1;
     osmdRef.current = osmd;
 
     source
@@ -277,10 +282,7 @@ function clickTarget(
 }
 
 /** Absolute timestamp of the note nearest to x across a measure's staves, if close enough. */
-function noteAt(
-  staffMeasures: GraphicalMeasure[],
-  x: number,
-): number | null {
+function noteAt(staffMeasures: GraphicalMeasure[], x: number): number | null {
   let best: number | null = null;
   let bestDistance = NOTE_HIT_RADIUS;
   for (const gm of staffMeasures) {
