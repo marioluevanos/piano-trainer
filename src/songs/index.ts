@@ -1,5 +1,4 @@
-import odeToJoy from "./ode-to-joy.musicxml?raw";
-import greatFairyFountainCover from "./great-fairy-fountain-cover.musicxml?raw";
+import { songTitle } from "./metadata";
 
 export interface Song {
   id: string;
@@ -11,21 +10,22 @@ export interface Song {
   user?: boolean;
 }
 
-/** Bundled songs. Drop any .musicxml file in this folder and register it here. */
-export const BUNDLED_SONGS: Song[] = [
-  {
-    id: "ode-to-joy",
-    title: "Ode to Joy — Beethoven",
-    format: "xml",
-    data: odeToJoy,
-  },
-  {
-    id: "great-fairy-fountain-cover",
-    title: "Great Fairy Fountain Theme — piano cover",
-    format: "xml",
-    data: greatFairyFountainCover,
-  },
-];
+/**
+ * Every .musicxml file in this folder, imported as text. Add songs with
+ * `npm run import-songs -- <folder>`; the title comes from the score itself.
+ */
+const files = import.meta.glob<string>("./*.musicxml", {
+  query: "?raw",
+  import: "default",
+  eager: true,
+});
+
+export const BUNDLED_SONGS: Song[] = Object.entries(files)
+  .map(([path, data]): Song => {
+    const id = path.replace(/^\.\/|\.musicxml$/g, "");
+    return { id, title: songTitle(data, id), format: "xml", data };
+  })
+  .sort((a, b) => a.title.localeCompare(b.title));
 
 /** What OSMD should load for this song: the XML text, or a Blob for a compressed .mxl. */
 export function songSource(song: Song): string | Blob {

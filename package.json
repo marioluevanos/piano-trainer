@@ -8,6 +8,7 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host",
     "test": "node --test --experimental-strip-types src/engine/*.test.ts",
+    "import-songs": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/import-songs.ts",
     "deploy": "firebase deploy --only hosting",
     "icons": "pwa-assets-generator"
   },

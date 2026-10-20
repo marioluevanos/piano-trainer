@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { BUNDLED_SONGS, type Song } from "./index";
+import { isMusicXml, songTitle } from "./metadata";
 
 const STORAGE_KEY = "piano-trainer.songs.v1";
 const SELECTED_KEY = "piano-trainer.selected-song.v1";
@@ -54,18 +55,6 @@ function bytesToBase64(bytes: Uint8Array): string {
   return btoa(bin);
 }
 
-function titleFromXml(xml: string, fallback: string): string {
-  const doc = new DOMParser().parseFromString(xml, "application/xml");
-  const title =
-    doc.querySelector("work > work-title")?.textContent?.trim() ||
-    doc.querySelector("movement-title")?.textContent?.trim();
-  const composer = doc
-    .querySelector('identification > creator[type="composer"]')
-    ?.textContent?.trim();
-  if (!title) return fallback;
-  return composer ? `${title} — ${composer}` : title;
-}
-
 /** Turn a .musicxml / .xml / .mxl file into a Song. Throws on unsupported input. */
 export async function songFromFile(file: File): Promise<Song> {
   const fallback = file.name.replace(/\.(musicxml|xml|mxl)$/i, "");
@@ -82,14 +71,14 @@ export async function songFromFile(file: File): Promise<Song> {
     };
   }
   const text = await file.text();
-  if (!/<score-partwise|<score-timewise/.test(text)) {
+  if (!isMusicXml(text)) {
     throw new Error(
       `${file.name} is not a MusicXML file. Export MusicXML from MuseScore (File → Export).`,
     );
   }
   return {
     id,
-    title: titleFromXml(text, fallback),
+    title: songTitle(text, fallback),
     format: "xml",
     data: text,
     user: true,

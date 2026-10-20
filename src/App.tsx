@@ -124,7 +124,11 @@ export default function App() {
     for (const n of engine.held)
       m.set(
         n,
-        engine.hits.has(n) ? "correct" : expected.has(n) ? "expected" : "pressed",
+        engine.hits.has(n)
+          ? "correct"
+          : expected.has(n)
+            ? "expected"
+            : "pressed",
       );
     for (const n of engine.misses) m.set(n, "wrong");
     for (const n of engine.hits) if (!engine.held.has(n)) m.set(n, "correct");
@@ -190,7 +194,11 @@ export default function App() {
   const startPlayback = (playSpeed: number, from?: number) => {
     const start =
       from ??
-      (engine.finished ? (loop ? loopStart(steps, loop) : 0) : engine.stepIndex);
+      (engine.finished
+        ? loop
+          ? loopStart(steps, loop)
+          : 0
+        : engine.stepIndex);
     playback.play(steps, start, { handMode, loop, speed: playSpeed });
   };
 
@@ -438,9 +446,9 @@ export default function App() {
             {midi.status === "ready"
               ? midi.inputs.length
                 ? `MIDI: ${midi.inputs.map((i) => i.name).join(", ")}`
-                : "MIDI ready — no keyboard connected (tap the keys above to test)"
+                : "MIDI ready — no keyboard connected"
               : midi.status === "unsupported"
-                ? "Web MIDI not supported in this browser — tap the keys above"
+                ? "Web MIDI not supported in this browser"
                 : midi.status === "denied"
                   ? "MIDI access denied"
                   : midi.status === "requesting"

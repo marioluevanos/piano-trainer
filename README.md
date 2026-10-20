@@ -17,6 +17,7 @@ npm install
 npm run dev        # http://localhost:5173, also reachable on your LAN for a phone
 npm test           # practice-engine unit tests
 npm run build      # type-check + production build into dist/
+npm run import-songs -- <folder>   # add MusicXML / .mxl songs to the app (see below)
 ```
 
 Web MIDI needs a secure context (https or localhost). Chrome, Edge and Opera support it on desktop and Android; Firefox needs the site-permission add-on; Safari does not support it.
@@ -46,7 +47,7 @@ The app reads **MusicXML**, the standard exchange format for sheet music. Two wa
 
 | | Load in the app | Bundle with the app |
 |---|---|---|
-| How | **Load song…** button | Add a file to `src/songs/` and register it |
+| How | **Load song…** button | `npm run import-songs -- <folder>` |
 | Formats | `.musicxml`, `.xml`, `.mxl` | `.musicxml` or `.xml` only (uncompressed) |
 | Where it lives | This browser's localStorage only | Every build, every device |
 
@@ -56,29 +57,36 @@ Click **Load song…** and pick the file. Compressed `.mxl` works as is. The son
 
 ### Bundle with the app
 
-1. **Get an uncompressed MusicXML file.** If you have a `.mxl`, it is a zip archive holding the score plus a `META-INF/container.xml` manifest. Extract the score:
+Put the files in a folder (or use one you already have, like Downloads) and run:
 
-   ```sh
-   unzip -l my-song.mxl     # list the contents; the score is the .xml that is not in META-INF/
-   unzip -p my-song.mxl score.xml > src/songs/my-song.musicxml
-   ```
+```sh
+npm run import-songs -- ~/Downloads/new-songs           # a folder: every .mxl, .musicxml and .xml in it
+npm run import-songs -- song.mxl other.musicxml         # or individual files
+npm run import-songs -- ~/Downloads/new-songs --dry-run # report what would happen, write nothing
+```
 
-   `META-INF/container.xml` names the score file (`<rootfile full-path="...">`) if the archive holds more than one. Alternatively, in MuseScore use File → Export → MusicXML and choose the uncompressed `.musicxml` option.
+For each file the script:
 
-2. **Register it** in `src/songs/index.ts`:
+- unpacks a compressed `.mxl` (the score named in its `META-INF/container.xml`),
+- writes the uncompressed score to `src/songs/<title>.musicxml`, named from the score's title,
+- skips files already imported (same content), files that are not MusicXML, and formats that need converting first (`.mid`, `.mscz`, `.mus`, `.pdf`, with a hint on how),
+- warns about scores that will play badly: more than one part, a single staff, or no tempo marking.
 
-   ```ts
-   import mySong from "./my-song.musicxml?raw";
+It never overwrites a different song with the same name unless you pass `--force`. There is nothing to register: `src/songs/index.ts` loads every `.musicxml` file in `src/songs/` and takes the title and composer from the score. To remove a bundled song, delete its file. Run `npm run dev` to check the new songs, trying each hand and ▶ Play.
 
-   export const BUNDLED_SONGS: Song[] = [
-     // ...existing songs
-     { id: "my-song", title: "My Song — Composer", format: "xml", data: mySong },
-   ];
-   ```
+<details>
+<summary>Doing it by hand</summary>
 
-   The `?raw` suffix makes Vite import the file as text, which is why bundled songs must be uncompressed. `id` must be unique.
+An `.mxl` is a zip archive: the score plus a `META-INF/container.xml` manifest naming it. Extract the score into the songs folder:
 
-3. **Check it:** `npm run dev`, pick the song, try each hand and press ▶ Play. `npm run build` catches a mistyped import.
+```sh
+unzip -l my-song.mxl     # the score is the .xml that is not in META-INF/
+unzip -p my-song.mxl score.xml > src/songs/my-song.musicxml
+```
+
+Or in MuseScore use File → Export → MusicXML and choose the uncompressed `.musicxml` option. Either way, any `.musicxml` file in `src/songs/` is picked up automatically.
+
+</details>
 
 ### What makes a score work well
 
