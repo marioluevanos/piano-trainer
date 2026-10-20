@@ -755,6 +755,13 @@ body,
   margin-left: 8px;
 }
 
+/* Shown inline because the Retry tooltip cannot be read on touch screens. */
+.status-error {
+  display: block;
+  color: var(--wrong);
+  overflow-wrap: anywhere;
+}
+
 .score-area {
   flex: 1;
   overflow: auto;

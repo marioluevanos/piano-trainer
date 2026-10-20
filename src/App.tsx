@@ -557,6 +557,9 @@ export default function App() {
                   : midi.status === "unavailable"
                     ? "MIDI unavailable on this device — on-screen keys still work"
                     : `MIDI error (${midi.error})`}
+          {midi.status === "unavailable" && midi.error && (
+            <span className="status-error">{midi.error}</span>
+          )}
           {(midi.status === "unavailable" || midi.status === "error") && (
             <Button
               className="status-retry"
