@@ -32,10 +32,3 @@ export async function decodeScore(
   if (format === "mxl") return new Blob([bytes], { type: MXL_TYPE });
   return new TextDecoder().decode(await pipe(bytes, new DecompressionStream("gzip")));
 }
-
-/** What OSMD should load for a song kept in localStorage (base64 for .mxl). */
-export function localSource(format: Song["format"], data: string): string | Blob {
-  if (format === "xml") return data;
-  const bytes = Uint8Array.from(atob(data), (c) => c.charCodeAt(0));
-  return new Blob([bytes], { type: MXL_TYPE });
-}

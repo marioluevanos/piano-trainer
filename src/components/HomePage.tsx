@@ -121,19 +121,23 @@ export function HomePage({
             <section>
               <div className="home-section-head">
                 <h2>Your songs</h2>
-                <button
-                  className="primary"
-                  onClick={() => fileInputRef.current?.click()}
-                  title="Load a .musicxml, .xml or .mxl file"
-                >
-                  Upload song
-                </button>
+                {user && (
+                  <button
+                    className="primary"
+                    onClick={() => fileInputRef.current?.click()}
+                    title="Load a .musicxml, .xml or .mxl file"
+                  >
+                    Upload song
+                  </button>
+                )}
               </div>
               {own.length ? (
                 list(own)
               ) : (
                 <p className="home-placeholder">
-                  Songs you load from a MusicXML file appear here.
+                  {user
+                    ? "Songs you load from a MusicXML file appear here."
+                    : "Sign in to upload your own songs."}
                 </p>
               )}
             </section>
