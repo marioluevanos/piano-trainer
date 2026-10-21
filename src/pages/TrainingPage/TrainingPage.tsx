@@ -11,7 +11,7 @@ import {
   type ScoreInfo,
 } from "../../components/ScoreView/ScoreView";
 import { Status } from "../../components/Status/Status";
-import { Toolbar } from "../../components/Toolbar/Toolbar";
+import { Toolbar, type CursorNote } from "../../components/Toolbar/Toolbar";
 import {
   expectedMidi,
   expectedNotes,
@@ -19,8 +19,10 @@ import {
   jumpTo,
   loopStartIndex,
   loopSteps,
+  measureNoteTimes,
   noteOff as engineNoteOff,
   noteOn as engineNoteOn,
+  stepBy,
   type EngineState,
   endingsInLoop,
 } from "../../engine/practiceEngine";
@@ -263,6 +265,33 @@ export function TrainingPage({
   };
 
   const currentMeasure = currentStep ? currentStep.measure : 0;
+
+  // The note under the cursor, for "Start here" and "End here".
+  const cursorNote = useMemo<CursorNote | null>(() => {
+    if (!currentStep) return null;
+    const times = measureNoteTimes(steps, currentStep.measure);
+    return {
+      measure: currentStep.measure,
+      timestamp: currentStep.timestamp,
+      first: currentStep.timestamp <= times[0] + 1e-6,
+      last: currentStep.timestamp >= times[times.length - 1] - 1e-6,
+    };
+  }, [steps, currentStep]);
+
+  // Note numbers for a loop that starts or ends mid-measure, for its labels.
+  const loopNotes = useMemo(() => {
+    const noteNumber = (measure: number, timestamp: number | undefined) => {
+      if (timestamp === undefined) return null;
+      const i = measureNoteTimes(steps, measure).findIndex(
+        (t) => Math.abs(t - timestamp) < 1e-6,
+      );
+      return i < 0 ? null : i + 1;
+    };
+    return {
+      start: loop ? noteNumber(loop.startMeasure, loop.startTimestamp) : null,
+      end: loop ? noteNumber(loop.endMeasure, loop.endTimestamp) : null,
+    };
+  }, [steps, loop]);
   const restart = () => {
     playback.stop();
     setEngine(
@@ -281,8 +310,8 @@ export function TrainingPage({
     playback.play(steps, start, { handMode, loop, speed: playSpeed });
   };
 
-  // Jump to a clicked note, or the start of the measure when the click missed
-  // every note; playback continues from there.
+  // Jump to the tapped note (the nearest one in the measure); playback
+  // continues from there.
   const seekTo = ({ measure, timestamp }: ScoreClick) => {
     // A repeated measure appears once per pass; inside a loop, pick the pass it plays.
     const candidates = loop
@@ -300,6 +329,34 @@ export function TrainingPage({
     setEngine(next);
     if (playback.playing) startPlayback(speed, next.stepIndex);
   };
+
+  // Move the cursor one note back or forward; playback continues from there.
+  const nudge = (delta: 1 | -1) => {
+    const opts = { handMode, loop };
+    const i = stepBy(steps, engine.stepIndex, delta, opts);
+    if (steps.length === 0 || i === engine.stepIndex) return;
+    setEngine(jumpTo(steps, i, opts));
+    if (playback.playing) startPlayback(speed, i);
+  };
+  const nudgeRef = useRef(nudge);
+  nudgeRef.current = nudge;
+
+  // Arrow keys nudge the cursor, except while a control has focus.
+  useEffect(() => {
+    if (mode === null) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+      const delta =
+        e.key === "ArrowLeft" ? -1 : e.key === "ArrowRight" ? 1 : null;
+      if (delta === null) return;
+      const target = e.target as HTMLElement;
+      if (target.closest("input, select, textarea, [role=dialog]")) return;
+      e.preventDefault();
+      nudgeRef.current(delta);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [mode]);
 
   const togglePlayback = () =>
     playback.playing ? playback.stop() : startPlayback(speed);
@@ -328,26 +385,59 @@ export function TrainingPage({
         />
       )}
 
-      {/* Play and stop stay one tap away beside the toolbar toggle, in either mode. */}
+      {/* Note nudging and play/stop stay one tap away beside the toolbar toggle, in either mode. */}
       {mode !== null && (
-        <Button
-          className="play-toggle"
-          size="lg"
-          icon
-          round
-          active={playback.playing}
-          onClick={togglePlayback}
-          disabled={steps.length === 0}
-          aria-label={playback.playing ? "Stop" : "Play"}
-          title={playback.playing ? "Stop" : "Play the song"}
-        >
-          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-            <path
-              fill="currentColor"
-              d={playback.playing ? "M6 6h12v12H6z" : "M8 5v14l11-7z"}
-            />
-          </svg>
-        </Button>
+        <div className="transport">
+          <Button
+            size="lg"
+            icon
+            round
+            onClick={() => nudge(-1)}
+            disabled={steps.length === 0}
+            aria-label="Previous note"
+            title="Previous note (←)"
+          >
+            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+              <path
+                fill="currentColor"
+                d="M15.4 7.4 14 6l-6 6 6 6 1.4-1.4-4.6-4.6z"
+              />
+            </svg>
+          </Button>
+          <Button
+            size="lg"
+            icon
+            round
+            onClick={() => nudge(1)}
+            disabled={steps.length === 0}
+            aria-label="Next note"
+            title="Next note (→)"
+          >
+            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+              <path
+                fill="currentColor"
+                d="M8.6 16.6 10 18l6-6-6-6-1.4 1.4 4.6 4.6z"
+              />
+            </svg>
+          </Button>
+          <Button
+            size="lg"
+            icon
+            round
+            active={playback.playing}
+            onClick={togglePlayback}
+            disabled={steps.length === 0}
+            aria-label={playback.playing ? "Stop" : "Play"}
+            title={playback.playing ? "Stop" : "Play the song"}
+          >
+            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+              <path
+                fill="currentColor"
+                d={playback.playing ? "M6 6h12v12H6z" : "M8 5v14l11-7z"}
+              />
+            </svg>
+          </Button>
+        </div>
       )}
 
       <Toolbar
@@ -356,7 +446,8 @@ export function TrainingPage({
         canPlay={steps.length > 0}
         handMode={handMode}
         loop={loop}
-        currentMeasure={currentMeasure}
+        cursorNote={cursorNote}
+        loopNotes={loopNotes}
         measureCount={measureCount}
         speed={speed}
         fullKeyboard={fullKeyboard}
@@ -393,6 +484,7 @@ export function TrainingPage({
           <ScoreView
             source={source}
             cursorStep={engine.stepIndex}
+            loop={loop}
             onReady={handleReady}
             onScoreClick={seekTo}
             onError={setScoreError}
@@ -414,6 +506,7 @@ export function TrainingPage({
         finished={engine.finished}
         loaded={steps.length > 0}
         loop={loop}
+        loopNotes={loopNotes}
         currentMeasure={currentMeasure}
         measureCount={measureCount}
         completedSteps={engine.completedSteps}

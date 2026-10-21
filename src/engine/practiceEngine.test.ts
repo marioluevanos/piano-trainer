@@ -7,8 +7,10 @@ import {
   endingsInLoop,
   loopStartIndex,
   loopSteps,
+  measureNoteTimes,
   noteOff,
   noteOn,
+  stepBy,
 } from "./practiceEngine.ts";
 import type { Step } from "./types.ts";
 
@@ -198,4 +200,43 @@ test("chord notes must be struck together", () => {
   s = noteOff(s, 60);
   s = noteOn(s, steps, 60, opts, CHORD_WINDOW_MS + 50);
   assert.equal(s.stepIndex, 1, "both notes within the window");
+});
+
+test("stepBy nudges the cursor one playable note at a time", () => {
+  const both = { handMode: "both" as const, loop: null };
+  assert.equal(stepBy(steps, 0, 1, both), 1);
+  assert.equal(stepBy(steps, 1, -1, both), 0);
+  // Stays put at either end of the piece.
+  assert.equal(stepBy(steps, 0, -1, both), 0);
+  assert.equal(stepBy(steps, 2, 1, both), 2, "the trailing rest is not a note");
+  // The left hand plays only steps 0 and 2.
+  const left = { handMode: "left" as const, loop: null };
+  assert.equal(stepBy(steps, 0, 1, left), 2);
+  assert.equal(stepBy(steps, 2, -1, left), 0);
+});
+
+test("stepBy wraps around a loop", () => {
+  const opts = { handMode: "both" as const, loop: { startMeasure: 0, endMeasure: 0 } };
+  assert.equal(stepBy(steps, 1, 1, opts), 0);
+  assert.equal(stepBy(steps, 0, -1, opts), 1);
+});
+
+test("a loop can start and end on a note inside a measure", () => {
+  const both = { handMode: "both" as const };
+  // From m0's second note through m1's first note.
+  const loop = { startMeasure: 0, endMeasure: 1, startTimestamp: 0.25, endTimestamp: 0.5 };
+  assert.deepEqual(loopSteps(steps, loop), [1, 2]);
+  assert.equal(loopStartIndex(steps, loop), 1);
+  let s = jumpTo(steps, 1, { ...both, loop });
+  s = noteOn(s, steps, 64, { ...both, loop });
+  s = noteOn(s, steps, 67, { ...both, loop });
+  s = noteOn(s, steps, 55, { ...both, loop });
+  assert.equal(s.stepIndex, 1, "wrapped to the start note, not the measure's first");
+  // Following repeats trims the same way.
+  assert.deepEqual(loopSteps(steps, { ...loop, followRepeats: true }), [1, 2]);
+});
+
+test("measureNoteTimes lists a measure's notes, skipping rests", () => {
+  assert.deepEqual(measureNoteTimes(steps, 0), [0, 0.25]);
+  assert.deepEqual(measureNoteTimes(steps, 1), [0.5]);
 });

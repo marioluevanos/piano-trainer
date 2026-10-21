@@ -167,3 +167,17 @@ test("a loop over volta endings plays every measure in printed order", () => {
   );
   assert.equal(plan.length, 3);
 });
+
+test("a loop that starts on a later note lasts from it to the end note's successor", () => {
+  const loop = { startMeasure: 0, endMeasure: 1, startTimestamp: 0.25, endTimestamp: 0.5 };
+  const plan = planPlayback(steps, 0, { ...both, loop });
+  assert.deepEqual(
+    plan.events.map((e) => [e.stepIndex, e.time]),
+    [
+      [1, 0],
+      [2, 0.5],
+    ],
+  );
+  // Up to where the next note (the rest at 0.75) begins.
+  assert.equal(plan.length, 1);
+});

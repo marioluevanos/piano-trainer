@@ -11,6 +11,8 @@
 }
 
 .score-area {
+  /* Positioned so the loop shading scrolls with the score. */
+  position: relative;
   flex: 1;
   overflow: auto;
   background: var(--score-bg);
@@ -86,9 +88,11 @@
 }
 
 /* Beside the toolbar toggle, and under the toolbar when it slides in. */
-.play-toggle {
+.transport {
   position: fixed;
   bottom: 4px;
   right: 56px;
   z-index: 9;
+  display: flex;
+  gap: 8px;
 }

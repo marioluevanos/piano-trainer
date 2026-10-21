@@ -37,6 +37,16 @@ export interface LoopRange {
    * of each measure once in printed order.
    */
   followRepeats?: boolean;
+  /**
+   * Absolute timestamp (whole notes) of the note the loop starts on within
+   * `startMeasure`; unset starts at the measure's first note.
+   */
+  startTimestamp?: number;
+  /**
+   * Absolute timestamp of the note the loop ends on within `endMeasure`;
+   * unset ends with the measure's last note.
+   */
+  endTimestamp?: number;
 }
 
 /** The alternate endings of one repeat, in order; each spans measures `start`..`end` (0-based, inclusive). */

@@ -7,14 +7,14 @@ import {
 import { buildSteps } from "../../score/buildSteps";
 import { Button } from "../Button/Button";
 import { createSmoothScroller, type SmoothScroller } from "./smoothScroller";
-import type { EndingSet, Step } from "../../engine/types";
+import type { EndingSet, LoopRange, Step } from "../../engine/types";
 import "./ScoreView.css";
 
 /** Where a click landed on the score. */
 export interface ScoreClick {
   /** Source measure index. */
   measure: number;
-  /** Absolute timestamp (whole notes) of the clicked note, or null if the click missed every note. */
+  /** Absolute timestamp (whole notes) of the note nearest the click, or null if the measure has no notes. */
   timestamp: number | null;
 }
 
@@ -31,6 +31,8 @@ interface ScoreViewProps {
   source: Promise<string | Blob>;
   /** Step whose notes the cursor should highlight. */
   cursorStep: number;
+  /** The loop to shade on the score, or null for none. */
+  loop?: LoopRange | null;
   onReady: (info: ScoreInfo) => void;
   /** Called with the source measure index when the user clicks a measure. */
   /** Called when the user clicks the score, with the measure and note clicked. */
@@ -41,6 +43,7 @@ interface ScoreViewProps {
 export function ScoreView({
   source,
   cursorStep,
+  loop = null,
   onReady,
   onScoreClick,
   onError,
@@ -61,6 +64,21 @@ export function ScoreView({
   const infoRef = useRef<HTMLDivElement>(null);
   const [credits, setCredits] = useState<string[]>([]);
   const [infoOpen, setInfoOpen] = useState(false);
+  const loopLayerRef = useRef<HTMLDivElement>(null);
+  const [loopBands, setLoopBands] = useState<LoopBand[]>([]);
+  const loopRef = useRef(loop);
+  loopRef.current = loop;
+  const measureLoopRef = useRef(() => {});
+  measureLoopRef.current = () => {
+    const osmd = osmdRef.current;
+    const layer = loopLayerRef.current;
+    const current = loopRef.current;
+    setLoopBands(
+      osmd && layer && readyRef.current && current
+        ? loopBandsFor(osmd, current, layer)
+        : [],
+    );
+  };
 
   const syncCursor = () => {
     const osmd = osmdRef.current;
@@ -154,6 +172,7 @@ export function ScoreView({
         cursorPosRef.current = 0;
         readyRef.current = true;
         syncCursor();
+        measureLoopRef.current();
         onReadyRef.current({
           steps,
           measureCount: osmd.Sheet.SourceMeasures.length,
@@ -240,6 +259,27 @@ export function ScoreView({
     };
   }, []);
 
+  // Shade the loop. OSMD redraws the whole SVG on every render (resizing,
+  // rotating, zooming, a color scheme change), so the bands are measured again
+  // whenever the score's DOM changes, once per frame at most.
+  useEffect(() => {
+    measureLoopRef.current();
+  }, [loop]);
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    let frame = 0;
+    const observer = new MutationObserver(() => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => measureLoopRef.current());
+    });
+    observer.observe(el, { childList: true, subtree: true });
+    return () => {
+      observer.disconnect();
+      cancelAnimationFrame(frame);
+    };
+  }, []);
+
   // Move the visual cursor to the requested step.
   useEffect(() => {
     syncCursor();
@@ -297,6 +337,16 @@ export function ScoreView({
           )}
         </div>
       )}
+      {/* Before the score so the notes paint over the shading. */}
+      <div ref={loopLayerRef} className="score-loop" aria-hidden="true">
+        {loopBands.map((b, i) => (
+          <div
+            key={i}
+            className={`score-loop-band${b.start ? " start" : ""}${b.end ? " end" : ""}`}
+            style={{ left: b.left, top: b.top, width: b.width, height: b.height }}
+          />
+        ))}
+      </div>
       <div ref={containerRef} className="score" onClick={handleClick} />
     </>
   );
@@ -304,10 +354,10 @@ export function ScoreView({
 
 /**
  * Screens that get the single horizontal line instead of wrapped systems:
- * touch devices that are phone-sized in either orientation.
+ * phones held in landscape. Portrait phones and tablets keep the page layout.
  */
 const HORIZONTAL_QUERY =
-  "(pointer: coarse) and (max-width: 600px), (pointer: coarse) and (max-height: 600px)";
+  "(pointer: coarse) and (orientation: landscape) and (max-height: 600px)";
 
 /**
  * In the horizontal layout, zooms the score so its single line fills the
@@ -343,14 +393,11 @@ function applyScoreColors(osmd: OpenSheetMusicDisplay, el: HTMLElement) {
 /** Extra hit area above and below each system, in OSMD units (10px each). */
 const SYSTEM_PADDING = 2;
 
-/** How far left or right of a note's center a click still selects it, in OSMD units. */
-const NOTE_HIT_RADIUS = 1.5;
-
 /**
  * Measure and note under a click, or null. A measure spans every staff of its
- * system, so clicks between the treble and bass staves count too. The note is
- * matched by horizontal position only, so a click above or below a chord
- * still selects it.
+ * system, so clicks between the treble and bass staves count too. The click
+ * snaps to the nearest note in the measure by horizontal position, so a finger
+ * that lands between notes, or above or below a chord, still selects one.
  */
 function clickTarget(
   osmd: OpenSheetMusicDisplay,
@@ -390,10 +437,139 @@ function clickTarget(
   return null;
 }
 
-/** Absolute timestamp of the note nearest to x across a measure's staves, if close enough. */
+/** One shaded rectangle of the loop, in px from the loop layer's origin. */
+interface LoopBand {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+  /** Holds the loop's first note, so it gets the start edge. */
+  start: boolean;
+  /** Holds the loop's last note, so it gets the end edge. */
+  end: boolean;
+}
+
+/** How far the shading reaches past the staves and notes, in OSMD units. */
+const LOOP_PADDING_Y = 2;
+const LOOP_PADDING_X = 0.6;
+const TIMESTAMP_EPSILON = 1e-6;
+
+/**
+ * The loop's shading: one band per system line it covers, spanning every
+ * staff, with the first and last measures trimmed to the loop's start and end
+ * notes when it starts or ends mid-measure. Positions come from OSMD's layout,
+ * so this must run again after every render.
+ */
+function loopBandsFor(
+  osmd: OpenSheetMusicDisplay,
+  loop: LoopRange,
+  layer: HTMLElement,
+): LoopBand[] {
+  const sheet = osmd.GraphicSheet;
+  const origin = layer.getBoundingClientRect();
+  // OSMD units are 10 SVG units; the SVG's own transform handles zoom and scroll.
+  const toLayer = (x: number, y: number) => {
+    const p = sheet.svgToDom(new PointF2D(x * 10, y * 10));
+    return { x: p.x - origin.left, y: p.y - origin.top };
+  };
+
+  type Box = { left: number; right: number; top: number; bottom: number };
+  const boxes: (Box & { system: unknown; start: boolean; end: boolean })[] = [];
+  for (const staffMeasures of sheet.MeasureList) {
+    const measures = staffMeasures.filter((gm): gm is GraphicalMeasure => !!gm);
+    if (measures.length === 0) continue;
+    const index = measures[0].parentSourceMeasure.measureListIndex;
+    if (index < loop.startMeasure || index > loop.endMeasure) continue;
+
+    const box: Box = { left: Infinity, right: -Infinity, top: Infinity, bottom: -Infinity };
+    for (const gm of measures) {
+      const shape = gm.PositionAndShape;
+      const pos = shape.AbsolutePosition;
+      // Skip a clef, key or time signature drawn at the start of the measure.
+      box.left = Math.min(
+        box.left,
+        pos.x + shape.BorderLeft + gm.beginInstructionsWidth,
+      );
+      box.right = Math.max(box.right, pos.x + shape.BorderRight);
+      box.top = Math.min(box.top, pos.y + shape.BorderTop);
+      box.bottom = Math.max(box.bottom, pos.y + shape.BorderBottom);
+    }
+    // A mid-measure start begins just before its note; a mid-measure end stops
+    // just before the note that follows it.
+    if (index === loop.startMeasure && loop.startTimestamp !== undefined) {
+      const at = loop.startTimestamp;
+      const left = entryEdge(measures, (t) => Math.abs(t - at) < TIMESTAMP_EPSILON);
+      if (left !== null) box.left = left - LOOP_PADDING_X;
+    }
+    if (index === loop.endMeasure && loop.endTimestamp !== undefined) {
+      const at = loop.endTimestamp;
+      const right = entryEdge(measures, (t) => t > at + TIMESTAMP_EPSILON);
+      if (right !== null) box.right = right - LOOP_PADDING_X;
+    }
+    boxes.push({
+      ...box,
+      system: measures[0].ParentMusicSystem,
+      start: index === loop.startMeasure,
+      end: index === loop.endMeasure,
+    });
+  }
+
+  // Measures side by side on one system line merge into a single band.
+  const merged: typeof boxes = [];
+  for (const b of boxes) {
+    const last = merged[merged.length - 1];
+    if (last && last.system === b.system) {
+      last.right = b.right;
+      last.top = Math.min(last.top, b.top);
+      last.bottom = Math.max(last.bottom, b.bottom);
+      last.end = b.end;
+    } else {
+      merged.push({ ...b });
+    }
+  }
+
+  return merged.map((b) => {
+    const topLeft = toLayer(b.left, b.top - LOOP_PADDING_Y);
+    const bottomRight = toLayer(b.right, b.bottom + LOOP_PADDING_Y);
+    return {
+      left: topLeft.x,
+      top: topLeft.y,
+      width: Math.max(0, bottomRight.x - topLeft.x),
+      height: Math.max(0, bottomRight.y - topLeft.y),
+      start: b.start,
+      end: b.end,
+    };
+  });
+}
+
+/** Left edge, across a measure's staves, of the first note whose timestamp matches. */
+function entryEdge(
+  measures: GraphicalMeasure[],
+  matches: (timestamp: number) => boolean,
+): number | null {
+  let best: { timestamp: number; left: number } | null = null;
+  for (const gm of measures) {
+    for (const entry of gm.staffEntries) {
+      const timestamp = entry.getAbsoluteTimestamp().RealValue;
+      if (!matches(timestamp)) continue;
+      const shape = entry.PositionAndShape;
+      const left = shape.AbsolutePosition.x + shape.BorderLeft;
+      if (
+        !best ||
+        timestamp < best.timestamp - TIMESTAMP_EPSILON ||
+        (Math.abs(timestamp - best.timestamp) < TIMESTAMP_EPSILON && left < best.left)
+      ) {
+        best = { timestamp, left };
+      }
+    }
+  }
+  return best?.left ?? null;
+}
+
+/** Absolute timestamp of the note nearest to x across a measure's staves, or null for an empty measure. */
 function noteAt(staffMeasures: GraphicalMeasure[], x: number): number | null {
   let best: number | null = null;
-  let bestDistance = NOTE_HIT_RADIUS;
+  let bestDistance = Infinity;
   for (const gm of staffMeasures) {
     for (const entry of gm?.staffEntries ?? []) {
       const box = entry.PositionAndShape;

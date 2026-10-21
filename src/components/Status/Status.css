@@ -1,5 +1,6 @@
 .status {
-  padding: 4px 7rem 4px 8px;
+  /* Clear of the transport buttons and the toolbar toggle at the right. */
+  padding: 4px 200px 4px 8px;
   font-size: 12px;
   color: var(--muted);
   background: var(--bg);

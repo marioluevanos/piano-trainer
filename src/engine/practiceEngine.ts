@@ -67,7 +67,8 @@ let loopCache: { steps: Step[]; loop: LoopRange; order: number[] } | null =
  * order, ignoring repeat signs and endings: a loop over 1–7 plays 1-2-3-4-5-6-7.
  * With `followRepeats` it plays the range as performed, from its first step
  * until the score leaves the range: 1-2-3-4, 1-2-3-5, 1-2-3-6, 7 for a passage
- * with three endings.
+ * with three endings. `startTimestamp` and `endTimestamp` trim the first and
+ * last measure to start or end on a given note.
  */
 export function loopSteps(steps: Step[], loop: LoopRange): number[] {
   const c = loopCache;
@@ -76,12 +77,27 @@ export function loopSteps(steps: Step[], loop: LoopRange): number[] {
     c.steps === steps &&
     c.loop.startMeasure === loop.startMeasure &&
     c.loop.endMeasure === loop.endMeasure &&
-    !!c.loop.followRepeats === !!loop.followRepeats
+    !!c.loop.followRepeats === !!loop.followRepeats &&
+    c.loop.startTimestamp === loop.startTimestamp &&
+    c.loop.endTimestamp === loop.endTimestamp
   ) {
     return c.order;
   }
+  const { startMeasure, endMeasure, startTimestamp, endTimestamp } = loop;
+  const EPSILON = 1e-6;
   const inLoop = (s: Step) =>
-    s.measure >= loop.startMeasure && s.measure <= loop.endMeasure;
+    s.measure >= startMeasure &&
+    s.measure <= endMeasure &&
+    !(
+      s.measure === startMeasure &&
+      startTimestamp !== undefined &&
+      s.timestamp < startTimestamp - EPSILON
+    ) &&
+    !(
+      s.measure === endMeasure &&
+      endTimestamp !== undefined &&
+      s.timestamp > endTimestamp + EPSILON
+    );
   const order = loop.followRepeats
     ? performedSteps(steps, inLoop)
     : printedSteps(steps, inLoop);
@@ -112,13 +128,26 @@ function printedSteps(steps: Step[], inLoop: (s: Step) => boolean): number[] {
       steps[i + 1]?.measure === measure &&
       steps[i + 1].timestamp > steps[i].timestamp
     ) {
-      run.push(++i);
+      // The rest of the pass, minus notes past a loop that ends mid-measure.
+      if (inLoop(steps[++i])) run.push(i);
     }
     firstPass.set(measure, run);
   }
   return [...firstPass.keys()]
     .sort((a, b) => a - b)
     .flatMap((m) => firstPass.get(m)!);
+}
+
+/**
+ * Timestamps of the notes in a measure, in order, one per cursor position that
+ * has something to play (both hands). Note n of the measure is entry n - 1.
+ */
+export function measureNoteTimes(steps: Step[], measure: number): number[] {
+  const times = new Set<number>();
+  for (const s of steps) {
+    if (s.measure === measure && s.notes.length > 0) times.add(s.timestamp);
+  }
+  return [...times].sort((a, b) => a - b);
 }
 
 /**
@@ -188,6 +217,46 @@ export function skipEmptySteps(
     if (++guard > steps.length) return -1; // loop range with nothing to play
   }
   return i;
+}
+
+/** Index of the step before `from`, honoring the loop range. -1 means `from` is the first step. */
+export function previousStepIndex(
+  steps: Step[],
+  from: number,
+  loop: LoopRange | null,
+): number {
+  if (loop) {
+    // From a step outside the loop, the loop's last step comes before it.
+    const order = loopSteps(steps, loop);
+    const at = order.indexOf(from);
+    return order[(at <= 0 ? order.length : at) - 1] ?? -1;
+  }
+  return from > 0 ? from - 1 : -1;
+}
+
+/**
+ * The step `delta` playable steps away from `from` (+1 the next note, -1 the
+ * previous one), for nudging the cursor one note at a time. Steps with nothing
+ * to play for the hand mode are passed over, and a loop wraps around. Returns
+ * `from` when there is nowhere to go (either end of the piece).
+ */
+export function stepBy(
+  steps: Step[],
+  from: number,
+  delta: 1 | -1,
+  opts: EngineOptions,
+): number {
+  let i = from;
+  for (let guard = 0; guard <= steps.length; guard++) {
+    const next =
+      delta > 0
+        ? nextStepIndex(steps, i, opts.loop)
+        : previousStepIndex(steps, i, opts.loop);
+    if (next < 0) return from;
+    i = next;
+    if (expectedMidi(steps[i], opts.handMode).size > 0) return i;
+  }
+  return from;
 }
 
 /** Jump the engine to a step (e.g. after the user changes the loop or hand mode). */

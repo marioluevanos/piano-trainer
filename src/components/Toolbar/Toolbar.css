@@ -97,3 +97,10 @@
   line-height: 1.4;
   color: var(--muted);
 }
+
+/* Which notes a loop that starts or ends mid-measure starts and ends on. */
+.loop-note {
+  margin: -4px 0 0;
+  font-size: 12px;
+  color: var(--accent);
+}

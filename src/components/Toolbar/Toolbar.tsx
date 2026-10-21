@@ -12,8 +12,10 @@ interface Props {
   canPlay: boolean;
   handMode: HandMode;
   loop: LoopRange | null;
-  /** The measure under the cursor, zero-based. */
-  currentMeasure: number;
+  /** The note under the cursor, for setting a loop end on it; null before the score loads. */
+  cursorNote: CursorNote | null;
+  /** 1-based note numbers the loop starts and ends on, when it starts or ends mid-measure. */
+  loopNotes: { start: number | null; end: number | null };
   measureCount: number;
   speed: number;
   fullKeyboard: boolean;
@@ -33,6 +35,17 @@ interface Props {
   onSoundChange: (sound: boolean) => void;
 }
 
+/** Where the cursor is, in the terms a loop is set in. */
+export interface CursorNote {
+  measure: number;
+  /** Absolute timestamp (whole notes). */
+  timestamp: number;
+  /** True on the measure's first note; a loop starting there takes the whole measure. */
+  first: boolean;
+  /** True on the measure's last note; a loop ending there takes the whole measure. */
+  last: boolean;
+}
+
 /**
  * The practice toolbar: a fixed gear button that slides in a bar with the
  * playback, hand and settings controls.
@@ -43,7 +56,8 @@ export function Toolbar({
   canPlay,
   handMode,
   loop,
-  // currentMeasure,
+  cursorNote,
+  loopNotes,
   measureCount,
   speed,
   fullKeyboard,
@@ -108,16 +122,43 @@ export function Toolbar({
 
   const measureOptions = Array.from({ length: measureCount }, (_, i) => i);
 
-  // const setLoopFromHere = (which: "start" | "end") => {
-  //   const start =
-  //     which === "start" ? currentMeasure : (loop?.startMeasure ?? 0);
-  //   const end =
-  //     which === "end" ? currentMeasure : (loop?.endMeasure ?? measureCount - 1);
-  //   onLoopChange({
-  //     startMeasure: Math.min(start, end),
-  //     endMeasure: Math.max(start, end),
-  //   });
-  // };
+  // Start or end the loop on the note under the cursor. On a measure's first
+  // (or last) note the loop takes the whole measure, so it shows no note label.
+  // When the new end would fall before the other one, that end moves to the
+  // whole cursor measure so the loop never runs backward.
+  const setLoopFromHere = (which: "start" | "end") => {
+    if (!cursorNote) return;
+    const { measure, timestamp, first, last } = cursorNote;
+    const next: LoopRange = {
+      ...(loop ?? { startMeasure: 0, endMeasure: measureCount - 1 }),
+    };
+    if (which === "start") {
+      next.startMeasure = measure;
+      next.startTimestamp = first ? undefined : timestamp;
+      const endsBefore =
+        next.endMeasure < measure ||
+        (next.endMeasure === measure &&
+          next.endTimestamp !== undefined &&
+          next.endTimestamp < timestamp);
+      if (endsBefore) {
+        next.endMeasure = measure;
+        next.endTimestamp = undefined;
+      }
+    } else {
+      next.endMeasure = measure;
+      next.endTimestamp = last ? undefined : timestamp;
+      const startsAfter =
+        next.startMeasure > measure ||
+        (next.startMeasure === measure &&
+          next.startTimestamp !== undefined &&
+          next.startTimestamp > timestamp);
+      if (startsAfter) {
+        next.startMeasure = measure;
+        next.startTimestamp = undefined;
+      }
+    }
+    onLoopChange(next);
+  };
 
   return (
     <>
@@ -164,44 +205,6 @@ export function Toolbar({
         <span className="toolbar-title">{title}</span>
 
         <div className="toolbar-actions">
-          <Button
-            icon
-            active={playing}
-            onClick={onTogglePlayback}
-            disabled={!canPlay}
-            aria-label={playing ? "Stop" : "Play"}
-            title="Play the song from the cursor (the selected hands only)"
-          >
-            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-              <path
-                fill="currentColor"
-                d={playing ? "M6 6h12v12H6z" : "M8 5v14l11-7z"}
-              />
-            </svg>
-          </Button>
-          <Button
-            className="hand-button hand-L"
-            icon
-            active={leftOn}
-            onClick={() => toggleHand("left")}
-            aria-pressed={leftOn}
-            aria-label="Left hand"
-            title="Left hand"
-          >
-            L
-          </Button>
-          <Button
-            className="hand-button"
-            icon
-            active={rightOn}
-            onClick={() => toggleHand("right")}
-            aria-pressed={rightOn}
-            aria-label="Right hand"
-            title="Right hand"
-          >
-            R
-          </Button>
-
           <SettingsMenu>
             <div className="settings-row">
               <Button onClick={onRestart}>Restart</Button>
@@ -218,10 +221,17 @@ export function Toolbar({
                   onChange={(e) => {
                     // "off" has an empty value, which Number() would turn into measure 1.
                     if (e.target.value === "") return onLoopChange(null);
+                    // A measure picked here starts on its first note; the
+                    // end keeps its note unless it has to move.
                     const start = Number(e.target.value);
+                    const end = Math.max(start, loop?.endMeasure ?? start);
                     onLoopChange({
                       startMeasure: start,
-                      endMeasure: Math.max(start, loop?.endMeasure ?? start),
+                      endMeasure: end,
+                      endTimestamp:
+                        end === loop?.endMeasure
+                          ? loop.endTimestamp
+                          : undefined,
                     });
                   }}
                 >
@@ -244,6 +254,7 @@ export function Toolbar({
                         loop.startMeasure,
                         Number(e.target.value),
                       ),
+                      endTimestamp: undefined,
                     })
                   }
                 >
@@ -256,19 +267,33 @@ export function Toolbar({
                 </select>
               </label>
             </div>
+            {(loopNotes.start !== null || loopNotes.end !== null) && (
+              <p className="loop-note">
+                {[
+                  loopNotes.start !== null &&
+                    `Starts on note ${loopNotes.start}`,
+                  loopNotes.end !== null && `ends on note ${loopNotes.end}`,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")
+                  .replace(/^e/, "E")}
+              </p>
+            )}
             <div className="settings-row">
-              {/* <Button
+              <Button
                 onClick={() => setLoopFromHere("start")}
-                title="Set loop start to the current measure"
+                disabled={!cursorNote}
+                title="Start the loop on the note under the cursor"
               >
                 Start here
               </Button>
               <Button
                 onClick={() => setLoopFromHere("end")}
-                title="Set loop end to the current measure"
+                disabled={!cursorNote}
+                title="End the loop on the note under the cursor"
               >
                 End here
-              </Button> */}
+              </Button>
             </div>
             <div className="settings-row">
               <label title="Play the loop through its repeat signs and endings, as the music is performed">
@@ -324,6 +349,47 @@ export function Toolbar({
               </label>
             </div>
           </SettingsMenu>
+          <Button
+            className="hand-button hand-L"
+            icon
+            active={leftOn}
+            onClick={() => toggleHand("left")}
+            aria-pressed={leftOn}
+            aria-label="Left hand"
+            title="Left hand"
+          >
+            L
+          </Button>
+          <Button
+            className="hand-button"
+            icon
+            active={rightOn}
+            onClick={() => toggleHand("right")}
+            aria-pressed={rightOn}
+            aria-label="Right hand"
+            title="Right hand"
+          >
+            R
+          </Button>
+          <Button
+            icon
+            active={playing}
+            onClick={() => {
+              // Starting playback hides the toolbar so the score is in view.
+              if (!playing) setOpen(false);
+              onTogglePlayback();
+            }}
+            disabled={!canPlay}
+            aria-label={playing ? "Stop" : "Play"}
+            title="Play the song from the cursor (the selected hands only)"
+          >
+            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+              <path
+                fill="currentColor"
+                d={playing ? "M6 6h12v12H6z" : "M8 5v14l11-7z"}
+              />
+            </svg>
+          </Button>
         </div>
       </header>
     </>

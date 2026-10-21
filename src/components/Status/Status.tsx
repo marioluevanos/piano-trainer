@@ -10,6 +10,8 @@ interface Props {
   /** False until the score is ready. */
   loaded: boolean;
   loop: LoopRange | null;
+  /** 1-based note numbers the loop starts and ends on, when mid-measure. */
+  loopNotes: { start: number | null; end: number | null };
   /** The measure under the cursor, zero-based. */
   currentMeasure: number;
   measureCount: number;
@@ -24,13 +26,17 @@ export function Status({
   finished,
   loaded,
   loop,
+  loopNotes,
   currentMeasure,
   measureCount,
   completedSteps,
   wrongNotes,
 }: Props) {
+  // A mid-measure end reads "3.2": measure 3, note 2.
+  const loopEnd = (measure: number, note: number | null) =>
+    note === null ? `${measure + 1}` : `${measure + 1}.${note}`;
   const loopLabel = loop
-    ? ` • Loop ${loop.startMeasure + 1}–${loop.endMeasure + 1}`
+    ? ` • Loop ${loopEnd(loop.startMeasure, loopNotes.start)}–${loopEnd(loop.endMeasure, loopNotes.end)}`
     : "";
 
   return (

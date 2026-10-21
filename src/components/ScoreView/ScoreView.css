@@ -62,3 +62,28 @@
   color: var(--score-muted);
   font-size: 0.9rem;
 }
+
+/* The loop's shading, laid out in px over the score (see loopBandsFor). It
+   sits in the scrolling score area so it scrolls with the music, and never
+   takes taps meant for the notes. */
+.score-loop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+
+.score-loop-band {
+  position: absolute;
+  background: color-mix(in srgb, var(--score-accent) 12%, transparent);
+  border-radius: 6px;
+}
+
+/* The loop's first and last notes get a solid edge, like brackets. */
+.score-loop-band.start {
+  border-left: 3px solid var(--score-accent);
+}
+
+.score-loop-band.end {
+  border-right: 3px solid var(--score-accent);
+}
