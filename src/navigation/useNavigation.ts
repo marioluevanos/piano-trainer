@@ -21,7 +21,7 @@ export function useNavigation() {
   }, []);
 
   const openSong = useCallback((songId: string) => {
-    const next: Route = { page: "practice", songId };
+    const next: Route = { page: "training", songId };
     const state: EntryState = { fromHome: true };
     history.pushState(state, "", routeUrl(next));
     setRoute(next);

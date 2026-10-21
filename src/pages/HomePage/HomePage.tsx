@@ -3,9 +3,9 @@ import type { User } from "firebase/auth";
 import type { Song } from "../../songs";
 import { useCoverUrl } from "../../songs/cover";
 import { readSongFile, type ImportedSong, type SongDetails } from "../../songs/library";
-import { Button } from "../Button/Button";
-import { SongDialog } from "../SongDialog/SongDialog";
-import { SongMenu } from "../SongMenu/SongMenu";
+import { Button } from "../../components/Button/Button";
+import { SongDialog } from "../../components/SongDialog/SongDialog";
+import { SongMenu } from "../../components/SongMenu/SongMenu";
 import "./HomePage.css";
 
 type Layout = "list" | "grid";
