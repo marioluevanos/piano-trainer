@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Button } from "../../components/Button/Button";
 import { Keyboard, noteName } from "../../components/Keyboard/Keyboard";
+import {
+  ModeDialog,
+  type TrainingMode,
+} from "../../components/ModeDialog/ModeDialog";
 import {
   ScoreView,
   type ScoreClick,
@@ -29,7 +34,7 @@ import type {
 } from "../../engine/types";
 import { useMidiInput } from "../../midi/useMidiInput";
 import { usePlayback } from "../../midi/usePlayback";
-import { synthNoteOff, synthNoteOn } from "../../midi/synth";
+import { synthNoteOff, synthNoteOn, unlockAudio } from "../../midi/synth";
 import type { Song } from "../../songs";
 import "./TrainingPage.css";
 
@@ -89,6 +94,11 @@ export function TrainingPage({
 
   const [engine, setEngine] = useState<EngineState>(() => initialState());
 
+  // Chosen when the page opens: practice on the piano, or listen to the song.
+  const [mode, setMode] = useState<TrainingMode | null>(null);
+  // Listen was chosen before the score finished loading; play once it is ready.
+  const [listenPending, setListenPending] = useState(false);
+
   // Engine inputs are read through refs so MIDI callbacks always see fresh values.
   const optsRef = useRef({ handMode, loop });
   optsRef.current = { handMode, loop };
@@ -133,6 +143,25 @@ export function TrainingPage({
       jumpTo(steps, loop ? loopStart(steps, loop) : 0, { handMode, loop }),
     );
   }, [handMode, loop, steps, stopPlayback]);
+
+  // Runs after the reset above, so the playback it starts is not stopped again.
+  useEffect(() => {
+    if (!listenPending || steps.length === 0) return;
+    setListenPending(false);
+    playback.play(steps, loop ? loopStart(steps, loop) : 0, {
+      handMode,
+      loop,
+      speed,
+    });
+  }, [listenPending, steps]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const chooseMode = (chosen: TrainingMode) => {
+    setMode(chosen);
+    if (chosen === "listen") {
+      unlockAudio();
+      setListenPending(true);
+    }
+  };
 
   const handleReady = useCallback((info: ScoreInfo) => {
     setScoreError(null);
@@ -258,6 +287,36 @@ export function TrainingPage({
         </svg>
         <p>Rotate your device to landscape</p>
       </div> */}
+      {mode === null && (source || loading) && (
+        <ModeDialog
+          title={song?.title}
+          practiceHint={practiceHint(midi)}
+          onChoose={chooseMode}
+        />
+      )}
+
+      {/* In listen mode, play and stop stay one tap away beside the toolbar toggle. */}
+      {mode === "listen" && (
+        <Button
+          className="listen-toggle"
+          size="lg"
+          icon
+          round
+          active={playback.playing}
+          onClick={togglePlayback}
+          disabled={steps.length === 0}
+          aria-label={playback.playing ? "Stop" : "Play"}
+          title={playback.playing ? "Stop" : "Play the song"}
+        >
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+            <path
+              fill="currentColor"
+              d={playback.playing ? "M6 6h12v12H6z" : "M8 5v14l11-7z"}
+            />
+          </svg>
+        </Button>
+      )}
+
       <Toolbar
         title={song?.title}
         playing={playback.playing}
@@ -329,6 +388,12 @@ export function TrainingPage({
       />
     </div>
   );
+}
+
+function practiceHint(midi: ReturnType<typeof useMidiInput>): string {
+  if (midi.status === "ready" && midi.inputs.length)
+    return midi.inputs.map((i) => i.name).join(", ");
+  return "MIDI keyboard or the on-screen keys";
 }
 
 function loopStart(steps: Step[], loop: LoopRange): number {

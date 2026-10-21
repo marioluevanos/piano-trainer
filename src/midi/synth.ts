@@ -163,6 +163,14 @@ export function synthNoteOff(midi: number) {
  */
 const scheduled = new Set<Voice>();
 
+/**
+ * Starts the audio context inside a user gesture, so playback that begins
+ * later (once the score has loaded) is not blocked by autoplay rules.
+ */
+export function unlockAudio() {
+  getCtx();
+}
+
 /** The audio clock, in seconds. Times passed to `synthSchedule` use it. */
 export function audioNow(): number {
   return getCtx().currentTime;
