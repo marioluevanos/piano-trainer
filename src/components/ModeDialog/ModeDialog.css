@@ -1,0 +1,78 @@
+/* ---------- Practice or listen, asked when a song opens ---------- */
+.mode-dialog {
+  width: min(520px, calc(100% - 32px));
+  padding: 20px;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 12px 40px var(--shadow);
+}
+
+.mode-dialog::backdrop {
+  background: var(--backdrop);
+}
+
+.mode-dialog h2 {
+  margin: 0 0 16px;
+  overflow: hidden;
+  font-size: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mode-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.mode-option {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+  padding: 20px 12px;
+  font: inherit;
+  text-align: center;
+  color: var(--text);
+  background: var(--control-bg);
+  border: 1px solid var(--control-border);
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.mode-option:is(:hover, :focus-visible) {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.mode-option.primary {
+  color: var(--on-accent);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.mode-option.primary:is(:hover, :focus-visible) {
+  background: var(--accent-dark);
+}
+
+.mode-option:focus-visible {
+  box-shadow: 0 0 0 2px var(--panel), 0 0 0 4px var(--accent);
+}
+
+.mode-label {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.mode-hint {
+  font-size: 13px;
+  opacity: 0.8;
+}
+
+@media (max-width: 420px) {
+  .mode-options {
+    grid-template-columns: 1fr;
+  }
+}

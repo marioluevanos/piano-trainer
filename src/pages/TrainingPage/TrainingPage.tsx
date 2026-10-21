@@ -12,11 +12,15 @@ import {
   expectedNotes,
   initialState,
   jumpTo,
+  loopStartIndex,
+  loopSteps,
   noteOff as engineNoteOff,
   noteOn as engineNoteOn,
   type EngineState,
+  endingsInLoop,
 } from "../../engine/practiceEngine";
 import type {
+  EndingSet,
   Hand,
   HandMode,
   KeyState,
@@ -64,10 +68,21 @@ export function TrainingPage({
 
   const [steps, setSteps] = useState<Step[]>([]);
   const [measureCount, setMeasureCount] = useState(0);
+  const [endings, setEndings] = useState<EndingSet[]>([]);
   const [scoreError, setScoreError] = useState<string | null>(null);
 
   const [handMode, setHandMode] = useState<HandMode>("both");
-  const [loop, setLoop] = useState<LoopRange | null>(null);
+  const [loopRange, setLoopRange] = useState<LoopRange | null>(null);
+  // Kept apart from the range so it survives clearing or changing the loop.
+  const [followRepeats, setFollowRepeats] = useState(false);
+  const loop = useMemo(
+    () => loopRange && { ...loopRange, followRepeats },
+    [loopRange, followRepeats],
+  );
+  const loopEndings = useMemo(
+    () => (loop && !followRepeats ? endingsInLoop(endings, loop) : null),
+    [endings, loop, followRepeats],
+  );
   const [fullKeyboard, setFullKeyboard] = useState(true);
   const [onScreenSound, setOnScreenSound] = useState(true);
   const [speed, setSpeed] = useState(1);
@@ -123,7 +138,8 @@ export function TrainingPage({
     setScoreError(null);
     setSteps(info.steps);
     setMeasureCount(info.measureCount);
-    setLoop(null);
+    setEndings(info.endings);
+    setLoopRange(null);
   }, []);
 
   const currentStep = steps[engine.stepIndex];
@@ -206,12 +222,17 @@ export function TrainingPage({
   // Jump to a clicked note, or the start of the measure when the click missed
   // every note; playback continues from there.
   const seekTo = ({ measure, timestamp }: ScoreClick) => {
-    const i =
+    // A repeated measure appears once per pass; inside a loop, pick the pass it plays.
+    const candidates = loop
+      ? loopSteps(steps, loop).map((k) => steps[k])
+      : steps;
+    const found =
       timestamp === null
-        ? steps.findIndex((s) => s.measure >= measure)
-        : steps.findIndex(
+        ? candidates.find((s) => s.measure >= measure)
+        : candidates.find(
             (s) => s.measure === measure && s.timestamp >= timestamp - 1e-6,
           );
+    const i = found?.index ?? -1;
     if (i < 0) return;
     const next = jumpTo(steps, i, { handMode, loop });
     setEngine(next);
@@ -230,13 +251,13 @@ export function TrainingPage({
   return (
     <div className="training-page">
       {/* Shown by CSS only on touch devices held in portrait. */}
-      <div className="rotate-prompt" role="alert">
+      {/* <div className="rotate-prompt" role="alert">
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <rect x="7" y="2" width="10" height="20" rx="2" />
           <path d="M3 9a9 9 0 0 1 4-5M21 15a9 9 0 0 1-4 5" />
         </svg>
         <p>Rotate your device to landscape</p>
-      </div>
+      </div> */}
       <Toolbar
         title={song?.title}
         playing={playback.playing}
@@ -252,7 +273,10 @@ export function TrainingPage({
         onTogglePlayback={togglePlayback}
         onRestart={restart}
         onHandModeChange={setHandMode}
-        onLoopChange={setLoop}
+        onLoopChange={setLoopRange}
+        followRepeats={followRepeats}
+        onFollowRepeatsChange={setFollowRepeats}
+        loopEndings={loopEndings}
         onSpeedChange={changeSpeed}
         onFullKeyboardChange={setFullKeyboard}
         onSoundChange={setOnScreenSound}
@@ -308,6 +332,5 @@ export function TrainingPage({
 }
 
 function loopStart(steps: Step[], loop: LoopRange): number {
-  const i = steps.findIndex((s) => s.measure >= loop.startMeasure);
-  return i < 0 ? 0 : i;
+  return Math.max(0, loopStartIndex(steps, loop));
 }

@@ -23,6 +23,11 @@ interface Props {
   onRestart: () => void;
   onHandModeChange: (mode: HandMode) => void;
   onLoopChange: (loop: LoopRange | null) => void;
+  /** Whether the loop plays through repeat signs and endings as performed. */
+  followRepeats: boolean;
+  onFollowRepeatsChange: (follow: boolean) => void;
+  /** Alternate endings the loop plays back to back (0-based measures), shown as a hint. */
+  loopEndings: { first: number; last: number } | null;
   onSpeedChange: (speed: number) => void;
   onFullKeyboardChange: (full: boolean) => void;
   onSoundChange: (sound: boolean) => void;
@@ -48,6 +53,9 @@ export function Toolbar({
   onRestart,
   onHandModeChange,
   onLoopChange,
+  followRepeats,
+  onFollowRepeatsChange,
+  loopEndings,
   onSpeedChange,
   onFullKeyboardChange,
   onSoundChange,
@@ -101,7 +109,8 @@ export function Toolbar({
   const measureOptions = Array.from({ length: measureCount }, (_, i) => i);
 
   const setLoopFromHere = (which: "start" | "end") => {
-    const start = which === "start" ? currentMeasure : (loop?.startMeasure ?? 0);
+    const start =
+      which === "start" ? currentMeasure : (loop?.startMeasure ?? 0);
     const end =
       which === "end" ? currentMeasure : (loop?.endMeasure ?? measureCount - 1);
     onLoopChange({
@@ -118,6 +127,7 @@ export function Toolbar({
         size="lg"
         icon
         round
+        variant="primary"
         active={open}
         onClick={() => setOpen((o) => !o)}
         aria-label={open ? "Hide toolbar" : "Show toolbar"}
@@ -145,7 +155,10 @@ export function Toolbar({
           title="Back to the song list"
         >
           <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-            <path fill="currentColor" d="M15.4 7.4 14 6l-6 6 6 6 1.4-1.4-4.6-4.6z" />
+            <path
+              fill="currentColor"
+              d="M15.4 7.4 14 6l-6 6 6 6 1.4-1.4-4.6-4.6z"
+            />
           </svg>
         </Button>
         <span className="toolbar-title">{title}</span>
@@ -253,8 +266,28 @@ export function Toolbar({
               >
                 End here
               </Button>
-              {loop && <Button onClick={() => onLoopChange(null)}>Clear</Button>}
+              {loop && (
+                <Button onClick={() => onLoopChange(null)}>Clear</Button>
+              )}
             </div>
+            <div className="settings-row">
+              <label title="Play the loop through its repeat signs and endings, as the music is performed">
+                <input
+                  type="checkbox"
+                  checked={followRepeats}
+                  disabled={!loop}
+                  onChange={(e) => onFollowRepeatsChange(e.target.checked)}
+                />
+                Follow repeats
+              </label>
+            </div>
+            {loopEndings && (
+              <p className="settings-hint" role="note">
+                Measures {loopEndings.first + 1}–{loopEndings.last + 1} are
+                alternate endings, so this loop plays them back to back. Turn on
+                Follow repeats to hear them as written.
+              </p>
+            )}
 
             <div className="settings-row">
               <label>

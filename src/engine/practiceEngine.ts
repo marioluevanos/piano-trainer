@@ -1,4 +1,4 @@
-import type { HandMode, LoopRange, Step, StepNote } from "./types";
+import type { EndingSet, HandMode, LoopRange, Step, StepNote } from "./types";
 
 /**
  * The notes of a chord must all be struck within this many milliseconds of the
@@ -59,33 +59,97 @@ export function expectedMidi(
   return new Set(expectedNotes(step, handMode).map((n) => n.midi));
 }
 
+let loopCache: { steps: Step[]; loop: LoopRange; order: number[] } | null =
+  null;
+
+/**
+ * The steps a loop plays. By default each measure of the range once, in printed
+ * order, ignoring repeat signs and endings: a loop over 1–7 plays 1-2-3-4-5-6-7.
+ * With `followRepeats` it plays the range as performed, from its first step
+ * until the score leaves the range: 1-2-3-4, 1-2-3-5, 1-2-3-6, 7 for a passage
+ * with three endings.
+ */
+export function loopSteps(steps: Step[], loop: LoopRange): number[] {
+  const c = loopCache;
+  if (
+    c &&
+    c.steps === steps &&
+    c.loop.startMeasure === loop.startMeasure &&
+    c.loop.endMeasure === loop.endMeasure &&
+    !!c.loop.followRepeats === !!loop.followRepeats
+  ) {
+    return c.order;
+  }
+  const inLoop = (s: Step) =>
+    s.measure >= loop.startMeasure && s.measure <= loop.endMeasure;
+  const order = loop.followRepeats
+    ? performedSteps(steps, inLoop)
+    : printedSteps(steps, inLoop);
+  loopCache = { steps, loop, order };
+  return order;
+}
+
+/** Steps in performance order, from the first one in the range until the score leaves it. */
+function performedSteps(steps: Step[], inLoop: (s: Step) => boolean): number[] {
+  const order: number[] = [];
+  for (let i = steps.findIndex(inLoop); i >= 0 && i < steps.length; i++) {
+    if (!inLoop(steps[i])) break;
+    order.push(i);
+  }
+  return order;
+}
+
+/** Each measure in the range once, in printed order, taken from its first pass. */
+function printedSteps(steps: Step[], inLoop: (s: Step) => boolean): number[] {
+  // First pass through each measure: its first step and the ones that follow
+  // it within the measure (a repeat of a single measure jumps back in time).
+  const firstPass = new Map<number, number[]>();
+  for (let i = 0; i < steps.length; i++) {
+    const { measure } = steps[i];
+    if (!inLoop(steps[i]) || firstPass.has(measure)) continue;
+    const run = [i];
+    while (
+      steps[i + 1]?.measure === measure &&
+      steps[i + 1].timestamp > steps[i].timestamp
+    ) {
+      run.push(++i);
+    }
+    firstPass.set(measure, run);
+  }
+  return [...firstPass.keys()]
+    .sort((a, b) => a - b)
+    .flatMap((m) => firstPass.get(m)!);
+}
+
+/**
+ * The measures (first and last, 0-based) of the alternate endings a loop plays
+ * back to back, or null when the loop holds at most one ending of each repeat.
+ */
+export function endingsInLoop(
+  endings: EndingSet[],
+  loop: LoopRange,
+): { first: number; last: number } | null {
+  for (const set of endings) {
+    const inside = set.filter(
+      (e) => e.end >= loop.startMeasure && e.start <= loop.endMeasure,
+    );
+    if (inside.length >= 2) {
+      return {
+        first: Math.max(inside[0].start, loop.startMeasure),
+        last: Math.min(inside[inside.length - 1].end, loop.endMeasure),
+      };
+    }
+  }
+  return null;
+}
+
 /**
  * The first step index inside the loop range, or 0 when there is no loop.
  * Returns -1 if the loop range contains no steps.
  */
 export function loopStartIndex(steps: Step[], loop: LoopRange | null): number {
   if (!loop) return 0;
-  const i = steps.findIndex((s) => s.measure >= loop.startMeasure);
-  return i;
-}
-
-/**
- * True when the step after `from` falls outside the loop's measures, so the loop
- * wraps there. Checking both bounds matters for scores with repeats: steps
- * follow the performance order, so a repeat sign can jump back to measures
- * before the loop, or replay the loop's measures only after the rest of the piece.
- */
-export function leavesLoop(
-  steps: Step[],
-  from: number,
-  loop: LoopRange,
-): boolean {
-  const next = steps[from + 1];
-  return (
-    !next ||
-    next.measure < loop.startMeasure ||
-    next.measure > loop.endMeasure
-  );
+  return loopSteps(steps, loop)[0] ?? -1;
 }
 
 /** Index of the step that follows `from`, honoring the loop range. -1 means the piece is finished. */
@@ -94,10 +158,13 @@ export function nextStepIndex(
   from: number,
   loop: LoopRange | null,
 ): number {
-  const next = from + 1;
   if (loop) {
-    return leavesLoop(steps, from, loop) ? loopStartIndex(steps, loop) : next;
+    // From a step outside the loop, the loop starts over.
+    const order = loopSteps(steps, loop);
+    const at = order.indexOf(from);
+    return order[(at + 1) % order.length] ?? -1;
   }
+  const next = from + 1;
   return next < steps.length ? next : -1;
 }
 

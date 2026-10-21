@@ -6,7 +6,7 @@ import {
 } from "opensheetmusicdisplay";
 import { buildSteps } from "../../score/buildSteps";
 import { Button } from "../Button/Button";
-import type { Step } from "../../engine/types";
+import type { EndingSet, Step } from "../../engine/types";
 import "./ScoreView.css";
 
 /** Where a click landed on the score. */
@@ -20,6 +20,8 @@ export interface ScoreClick {
 export interface ScoreInfo {
   steps: Step[];
   measureCount: number;
+  /** The alternate endings of each repeat that has more than one. */
+  endings: EndingSet[];
   title: string;
 }
 
@@ -132,6 +134,12 @@ export function ScoreView({
         onReadyRef.current({
           steps,
           measureCount: osmd.Sheet.SourceMeasures.length,
+          endings: osmd.Sheet.Repetitions.map((r) =>
+            r.EndingParts.map((p) => ({
+              start: p.part.startIndex,
+              end: p.part.endIndex,
+            })),
+          ).filter((set) => set.length > 1),
           title: osmd.Sheet.TitleString ?? "",
         });
       })

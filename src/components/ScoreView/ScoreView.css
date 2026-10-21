@@ -1,6 +1,5 @@
 .score {
-  padding: 8px;
-  cursor: pointer;
+  padding: 0;
 }
 
 /* Staff lines are the paths directly inside each "vf-measure" group; VexFlow

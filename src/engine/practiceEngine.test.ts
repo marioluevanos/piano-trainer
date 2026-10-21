@@ -4,6 +4,9 @@ import {
   CHORD_WINDOW_MS,
   initialState,
   jumpTo,
+  endingsInLoop,
+  loopStartIndex,
+  loopSteps,
   noteOff,
   noteOn,
 } from "./practiceEngine.ts";
@@ -112,6 +115,67 @@ test("loop wraps when a repeat jumps back before its start", () => {
   let s = jumpTo(repeated, 2, opts);
   s = noteOn(s, repeated, 67, opts);
   assert.equal(s.stepIndex, 2, "wrapped to measure 1, not the repeat at m0");
+});
+
+test("loop plays its measures in printed order, ignoring repeats", () => {
+  // m0, m1 (first ending), m0 again, m2 (second ending), m3.
+  const volta: Step[] = [0, 1, 0, 2, 3].map((measure, index) => ({
+    index,
+    measure,
+    timestamp: measure * 0.5,
+    measureEnd: measure * 0.5 + 0.5,
+    bpm: 120,
+    notes: [{ midi: 60 + measure, hand: "R", duration: 0.5 }],
+  }));
+  assert.deepEqual(loopSteps(volta, { startMeasure: 0, endMeasure: 3 }), [0, 1, 3, 4]);
+  assert.deepEqual(loopSteps(volta, { startMeasure: 1, endMeasure: 2 }), [1, 3]);
+  const opts = { handMode: "both" as const, loop: { startMeasure: 0, endMeasure: 3 } };
+  let s = jumpTo(volta, loopStartIndex(volta, opts.loop), opts);
+  const visited = [s.stepIndex];
+  for (const m of [60, 61, 62, 63]) {
+    s = noteOn(s, volta, m, opts);
+    visited.push(s.stepIndex);
+  }
+  assert.deepEqual(visited, [0, 1, 3, 4, 0]);
+});
+
+test("follow repeats plays the loop as performed", () => {
+  // m0, m1 (first ending), m0 again, m2 (second ending), m3.
+  const volta: Step[] = [0, 1, 0, 2, 3].map((measure, index) => ({
+    index,
+    measure,
+    timestamp: measure * 0.5,
+    measureEnd: measure * 0.5 + 0.5,
+    bpm: 120,
+    notes: [{ midi: 60 + measure, hand: "R", duration: 0.5 }],
+  }));
+  const loop = { startMeasure: 0, endMeasure: 3, followRepeats: true };
+  assert.deepEqual(loopSteps(volta, loop), [0, 1, 2, 3, 4]);
+  // The range ends where the score first leaves it.
+  assert.deepEqual(
+    loopSteps(volta, { startMeasure: 0, endMeasure: 1, followRepeats: true }),
+    [0, 1, 2],
+  );
+});
+
+test("endingsInLoop finds alternate endings played back to back", () => {
+  const endings = [
+    [
+      { start: 3, end: 3 },
+      { start: 4, end: 4 },
+      { start: 5, end: 5 },
+    ],
+  ];
+  assert.deepEqual(endingsInLoop(endings, { startMeasure: 0, endMeasure: 6 }), {
+    first: 3,
+    last: 5,
+  });
+  assert.deepEqual(endingsInLoop(endings, { startMeasure: 4, endMeasure: 9 }), {
+    first: 4,
+    last: 5,
+  });
+  assert.equal(endingsInLoop(endings, { startMeasure: 0, endMeasure: 3 }), null);
+  assert.equal(endingsInLoop([], { startMeasure: 0, endMeasure: 6 }), null);
 });
 
 test("piece finishes without a loop", () => {

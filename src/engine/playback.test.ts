@@ -109,13 +109,14 @@ test("a loop stops at its measures even when a repeat replays them later", () =>
   assert.equal(plan.length, 1);
 });
 
-test("a loop over the repeated measures plays both passes", () => {
+test("a loop over repeated measures plays each of them once", () => {
   const loop = { startMeasure: 0, endMeasure: 1 };
   const plan = planPlayback(repeated, 0, { ...both, loop });
   assert.deepEqual(
     plan.events.map((e) => e.stepIndex),
-    [0, 1, 2, 4, 5, 6],
+    [0, 1, 2],
   );
+  assert.equal(plan.length, 2);
 });
 
 test("starts at the cursor when it is inside the range", () => {
@@ -151,4 +152,18 @@ test("skipping a volta ending adds no silence", () => {
     [0, 1, 2, 3],
   );
   assert.equal(plan.length, 4);
+});
+
+test("a loop over volta endings plays every measure in printed order", () => {
+  const loop = { startMeasure: 0, endMeasure: 2 };
+  const plan = planPlayback(volta, 0, { ...both, loop });
+  assert.deepEqual(
+    plan.events.map((e) => [e.stepIndex, e.time]),
+    [
+      [0, 0],
+      [1, 1],
+      [3, 2],
+    ],
+  );
+  assert.equal(plan.length, 3);
 });

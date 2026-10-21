@@ -1,7 +1,6 @@
 import {
   expectedNotes,
-  leavesLoop,
-  loopStartIndex,
+  loopSteps,
   type EngineOptions,
 } from "./practiceEngine.ts";
 import type { Step } from "./types";
@@ -70,7 +69,7 @@ function stepGap(step: Step, next: Step | undefined): number {
 /**
  * Lay out the notes to play, in seconds, for the loop range (or the whole
  * piece), honoring the hand mode and each step's tempo. Playback begins at
- * step `from` when it lies inside the range, otherwise at the range start.
+ * step `from` when the range plays it, otherwise at the range start.
  */
 export function planPlayback(
   steps: Step[],
@@ -78,22 +77,18 @@ export function planPlayback(
   opts: PlaybackOptions,
 ): PlaybackPlan {
   const { loop } = opts;
-  const first = loopStartIndex(steps, loop);
-  if (steps.length === 0 || first < 0) return EMPTY_PLAN;
-  // A loop runs on from its first step until the music leaves its measures.
-  let last = steps.length - 1;
-  if (loop) {
-    last = first;
-    while (!leavesLoop(steps, last, loop)) last++;
-  }
+  // A loop plays its measures once each in printed order; otherwise the whole piece.
+  const order = loop ? loopSteps(steps, loop) : steps.map((s) => s.index);
+  if (order.length === 0) return EMPTY_PLAN;
 
-  const start = from >= first && from <= last ? from : first;
+  const start = order.includes(from) ? from : order[0];
   const events: PlayEvent[] = [];
   let time = 0;
   let startOffset = 0;
   let lastNoteEnd = 0;
 
-  for (let i = first; i <= last; i++) {
+  for (let k = 0; k < order.length; k++) {
+    const i = order[k];
     const step = steps[i];
     const seconds = wholeNoteSeconds(step.bpm, opts.speed);
     if (i === start) startOffset = time;
@@ -108,11 +103,14 @@ export function planPlayback(
       lastNoteEnd = Math.max(lastNoteEnd, end);
     }
 
-    time += stepGap(step, steps[i + 1]) * seconds;
+    // The last step of a pass leads into whatever follows it in the score.
+    const next = k + 1 < order.length ? steps[order[k + 1]] : steps[i + 1];
+    time += stepGap(step, next) * seconds;
   }
 
   // A pass ends where the following measure begins, so a loop keeps its rhythm.
   // At the end of the piece it lasts until the final note has finished.
+  const last = order[order.length - 1];
   const length = steps[last + 1] ? time : Math.max(time, lastNoteEnd);
   return { events, length, startOffset, repeat: loop !== null };
 }

@@ -32,6 +32,14 @@ export interface LoopRange {
   /** 0-based inclusive measure indices. */
   startMeasure: number;
   endMeasure: number;
+  /**
+   * Play the range as performed, through its repeat signs and endings, instead
+   * of each measure once in printed order.
+   */
+  followRepeats?: boolean;
 }
+
+/** The alternate endings of one repeat, in order; each spans measures `start`..`end` (0-based, inclusive). */
+export type EndingSet = { start: number; end: number }[];
 
 export type KeyState = "idle" | "expected" | "correct" | "wrong" | "pressed";
