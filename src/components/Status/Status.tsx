@@ -22,22 +22,22 @@ interface Props {
 /** The bottom status line: MIDI connection on the left, practice progress on the right. */
 export function Status({
   midi,
-  playing,
-  finished,
-  loaded,
-  loop,
-  loopNotes,
-  currentMeasure,
-  measureCount,
-  completedSteps,
-  wrongNotes,
+  // playing,
+  // finished,
+  // loaded,
+  // loop,
+  // loopNotes,
+  // currentMeasure,
+  // measureCount,
+  // completedSteps,
+  // wrongNotes,
 }: Props) {
   // A mid-measure end reads "3.2": measure 3, note 2.
-  const loopEnd = (measure: number, note: number | null) =>
-    note === null ? `${measure + 1}` : `${measure + 1}.${note}`;
-  const loopLabel = loop
-    ? ` • Loop ${loopEnd(loop.startMeasure, loopNotes.start)}–${loopEnd(loop.endMeasure, loopNotes.end)}`
-    : "";
+  // const loopEnd = (measure: number, note: number | null) =>
+  //   note === null ? `${measure + 1}` : `${measure + 1}.${note}`;
+  // const loopLabel = loop
+  //   ? ` • Loop ${loopEnd(loop.startMeasure, loopNotes.start)}–${loopEnd(loop.endMeasure, loopNotes.end)}`
+  //   : "";
 
   return (
     <section className="status">
@@ -57,7 +57,7 @@ export function Status({
           </Button>
         )}
       </span>
-      <span>
+      {/* <span>
         {playing
           ? `• Playing${loopLabel}`
           : finished
@@ -67,7 +67,7 @@ export function Status({
               : "Loading score…"}
         {" • "}
         {completedSteps} Played / {wrongNotes} Wrong
-      </span>
+      </span> */}
     </section>
   );
 }
