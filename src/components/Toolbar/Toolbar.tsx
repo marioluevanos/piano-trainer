@@ -43,7 +43,7 @@ export function Toolbar({
   canPlay,
   handMode,
   loop,
-  currentMeasure,
+  // currentMeasure,
   measureCount,
   speed,
   fullKeyboard,
@@ -108,16 +108,16 @@ export function Toolbar({
 
   const measureOptions = Array.from({ length: measureCount }, (_, i) => i);
 
-  const setLoopFromHere = (which: "start" | "end") => {
-    const start =
-      which === "start" ? currentMeasure : (loop?.startMeasure ?? 0);
-    const end =
-      which === "end" ? currentMeasure : (loop?.endMeasure ?? measureCount - 1);
-    onLoopChange({
-      startMeasure: Math.min(start, end),
-      endMeasure: Math.max(start, end),
-    });
-  };
+  // const setLoopFromHere = (which: "start" | "end") => {
+  //   const start =
+  //     which === "start" ? currentMeasure : (loop?.startMeasure ?? 0);
+  //   const end =
+  //     which === "end" ? currentMeasure : (loop?.endMeasure ?? measureCount - 1);
+  //   onLoopChange({
+  //     startMeasure: Math.min(start, end),
+  //     endMeasure: Math.max(start, end),
+  //   });
+  // };
 
   return (
     <>
@@ -205,6 +205,9 @@ export function Toolbar({
           <SettingsMenu>
             <div className="settings-row">
               <Button onClick={onRestart}>Restart</Button>
+              {loop && (
+                <Button onClick={() => onLoopChange(null)}>Clear</Button>
+              )}
             </div>
 
             <div className="settings-row">
@@ -254,7 +257,7 @@ export function Toolbar({
               </label>
             </div>
             <div className="settings-row">
-              <Button
+              {/* <Button
                 onClick={() => setLoopFromHere("start")}
                 title="Set loop start to the current measure"
               >
@@ -265,10 +268,7 @@ export function Toolbar({
                 title="Set loop end to the current measure"
               >
                 End here
-              </Button>
-              {loop && (
-                <Button onClick={() => onLoopChange(null)}>Clear</Button>
-              )}
+              </Button> */}
             </div>
             <div className="settings-row">
               <label title="Play the loop through its repeat signs and endings, as the music is performed">
@@ -314,13 +314,13 @@ export function Toolbar({
                 />
                 88 keys
               </label>
-              <label>
+              <label title="Play a sound when you tap the on-screen keyboard">
                 <input
                   type="checkbox"
                   checked={sound}
                   onChange={(e) => onSoundChange(e.target.checked)}
                 />
-                Sound
+                Keyboard Sound
               </label>
             </div>
           </SettingsMenu>

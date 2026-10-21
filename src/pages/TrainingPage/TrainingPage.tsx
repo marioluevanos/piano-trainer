@@ -38,6 +38,26 @@ import { synthNoteOff, synthNoteOn, unlockAudio } from "../../midi/synth";
 import type { Song } from "../../songs";
 import "./TrainingPage.css";
 
+const FULL_KEYBOARD_KEY = "piano-trainer.full-keyboard.v1";
+const KEYBOARD_SOUND_KEY = "piano-trainer.keyboard-sound.v1";
+
+/** Reads a remembered on/off setting, `true` unless it was turned off. */
+function loadSetting(key: string): boolean {
+  try {
+    return localStorage.getItem(key) !== "false";
+  } catch {
+    return true;
+  }
+}
+
+function saveSetting(key: string, on: boolean) {
+  try {
+    localStorage.setItem(key, String(on));
+  } catch {
+    // Not remembering a setting is harmless.
+  }
+}
+
 interface TrainingPageProps {
   /** The song to train on; undefined while the library loads or when it is gone. */
   song: Song | undefined;
@@ -88,8 +108,20 @@ export function TrainingPage({
     () => (loop && !followRepeats ? endingsInLoop(endings, loop) : null),
     [endings, loop, followRepeats],
   );
-  const [fullKeyboard, setFullKeyboard] = useState(true);
-  const [onScreenSound, setOnScreenSound] = useState(true);
+  const [fullKeyboard, setFullKeyboard] = useState(() =>
+    loadSetting(FULL_KEYBOARD_KEY),
+  );
+  const changeFullKeyboard = useCallback((full: boolean) => {
+    setFullKeyboard(full);
+    saveSetting(FULL_KEYBOARD_KEY, full);
+  }, []);
+  const [onScreenSound, setOnScreenSound] = useState(() =>
+    loadSetting(KEYBOARD_SOUND_KEY),
+  );
+  const changeOnScreenSound = useCallback((sound: boolean) => {
+    setOnScreenSound(sound);
+    saveSetting(KEYBOARD_SOUND_KEY, sound);
+  }, []);
   const [speed, setSpeed] = useState(1);
 
   const [engine, setEngine] = useState<EngineState>(() => initialState());
@@ -338,8 +370,8 @@ export function TrainingPage({
         onFollowRepeatsChange={setFollowRepeats}
         loopEndings={loopEndings}
         onSpeedChange={changeSpeed}
-        onFullKeyboardChange={setFullKeyboard}
-        onSoundChange={setOnScreenSound}
+        onFullKeyboardChange={changeFullKeyboard}
+        onSoundChange={changeOnScreenSound}
       />
 
       <section className="keyboard-area">
