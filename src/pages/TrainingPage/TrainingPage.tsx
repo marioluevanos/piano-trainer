@@ -145,6 +145,7 @@ export function TrainingPage({
   }, [handMode, loop, steps, stopPlayback]);
 
   // Runs after the reset above, so the playback it starts is not stopped again.
+  // Only the request and the score's arrival trigger it; the options are read as they are.
   useEffect(() => {
     if (!listenPending || steps.length === 0) return;
     setListenPending(false);
@@ -153,7 +154,7 @@ export function TrainingPage({
       loop,
       speed,
     });
-  }, [listenPending, steps]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [listenPending, steps]);
 
   const chooseMode = (chosen: TrainingMode) => {
     setMode(chosen);
@@ -295,10 +296,10 @@ export function TrainingPage({
         />
       )}
 
-      {/* In listen mode, play and stop stay one tap away beside the toolbar toggle. */}
-      {mode === "listen" && (
+      {/* Play and stop stay one tap away beside the toolbar toggle, in either mode. */}
+      {mode !== null && (
         <Button
-          className="listen-toggle"
+          className="play-toggle"
           size="lg"
           icon
           round

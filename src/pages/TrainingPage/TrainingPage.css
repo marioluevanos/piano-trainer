@@ -86,7 +86,7 @@
 }
 
 /* Beside the toolbar toggle, and under the toolbar when it slides in. */
-.listen-toggle {
+.play-toggle {
   position: fixed;
   bottom: 4px;
   right: 56px;

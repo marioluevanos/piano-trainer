@@ -38,7 +38,7 @@ export function ModeDialog({ title, practiceHint, onChoose }: Props) {
       <div className="mode-options">
         <button
           type="button"
-          className="mode-option primary"
+          className="mode-option"
           autoFocus
           onClick={() => onChoose("practice")}
         >
