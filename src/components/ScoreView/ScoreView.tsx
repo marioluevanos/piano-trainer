@@ -6,6 +6,7 @@ import {
 } from "opensheetmusicdisplay";
 import { buildSteps } from "../../score/buildSteps";
 import { Button } from "../Button/Button";
+import { createSmoothScroller, type SmoothScroller } from "./smoothScroller";
 import type { EndingSet, Step } from "../../engine/types";
 import "./ScoreView.css";
 
@@ -47,6 +48,7 @@ export function ScoreView({
   const containerRef = useRef<HTMLDivElement>(null);
   const osmdRef = useRef<OpenSheetMusicDisplay | null>(null);
   const cursorPosRef = useRef(0);
+  const scrollerRef = useRef<SmoothScroller | null>(null);
   const readyRef = useRef(false);
   const onReadyRef = useRef(onReady);
   onReadyRef.current = onReady;
@@ -79,7 +81,21 @@ export function ScoreView({
       pos++;
     }
     if (pos !== from) cursor.update();
+    const moved = pos !== cursorPosRef.current;
     cursorPosRef.current = pos;
+    if (moved) followCursor();
+  };
+
+  /** In the horizontal layout, eases the score area to keep the cursor in view. */
+  const followCursor = () => {
+    const osmd = osmdRef.current;
+    if (!osmd?.EngravingRules.RenderSingleHorizontalStaffline) return;
+    scrollerRef.current?.follow(osmd.cursor.cursorElement);
+  };
+
+  /** Lets OSMD scroll to the cursor only in the page layout; the horizontal one eases instead. */
+  const updateFollowMode = (osmd: OpenSheetMusicDisplay) => {
+    osmd.FollowCursor = !osmd.EngravingRules.RenderSingleHorizontalStaffline;
   };
 
   useEffect(() => {
@@ -101,13 +117,17 @@ export function ScoreView({
       drawLyricist: false,
       drawCredits: false,
       drawPartNames: false,
+      // Phones get one long line that scrolls sideways, so the next measures
+      // are always in view ahead of the cursor.
+      renderSingleHorizontalStaffline:
+        window.matchMedia(HORIZONTAL_QUERY).matches,
       followCursor: true,
       cursorsOptions: [{ type: 0, color: accent, alpha: 0.45, follow: true }],
     });
     // OSMD's default page margins are 5 units (50px) per side, which wastes a
     // third of a phone's width. The .score padding already keeps notes off the edge.
     osmd.EngravingRules.PageTopMargin = 1;
-    osmd.EngravingRules.PageLeftMargin = 2;
+    osmd.EngravingRules.PageLeftMargin = 4;
     osmd.EngravingRules.PageRightMargin = 1;
     osmdRef.current = osmd;
 
@@ -116,8 +136,11 @@ export function ScoreView({
       .then(() => {
         if (disposed) return;
         applyScoreColors(osmd, el);
+        updateFollowMode(osmd);
         osmd.render();
+        fitToHeight(osmd, el);
         osmd.cursor.show();
+        followCursor();
         const sheet = osmd.Sheet;
         setCredits(
           [
@@ -175,6 +198,46 @@ export function ScoreView({
     };
     query.addEventListener("change", onChange);
     return () => query.removeEventListener("change", onChange);
+  }, []);
+
+  // Switch between the horizontal and page layouts when the screen changes,
+  // e.g. a tablet rotating or a desktop window narrowing to phone size.
+  useEffect(() => {
+    const query = window.matchMedia(HORIZONTAL_QUERY);
+    const onChange = () => {
+      const osmd = osmdRef.current;
+      if (!osmd || !readyRef.current) return;
+      osmd.setOptions({ renderSingleHorizontalStaffline: query.matches });
+      updateFollowMode(osmd);
+      osmd.render();
+      fitToHeight(osmd, containerRef.current);
+      osmd.cursor.update();
+      followCursor();
+    };
+    query.addEventListener("change", onChange);
+    return () => query.removeEventListener("change", onChange);
+  }, []);
+
+  // Refit the horizontal line when the score area changes height, e.g. when
+  // the phone rotates or the toolbar opens.
+  useEffect(() => {
+    const area = containerRef.current?.parentElement;
+    if (!area) return;
+    const observer = new ResizeObserver(() => {
+      const osmd = osmdRef.current;
+      if (!osmd || !readyRef.current) return;
+      if (fitToHeight(osmd, containerRef.current)) {
+        osmd.cursor.update();
+        followCursor();
+      }
+    });
+    observer.observe(area);
+    scrollerRef.current = createSmoothScroller(area);
+    return () => {
+      observer.disconnect();
+      scrollerRef.current?.dispose();
+      scrollerRef.current = null;
+    };
   }, []);
 
   // Move the visual cursor to the requested step.
@@ -237,6 +300,38 @@ export function ScoreView({
       <div ref={containerRef} className="score" onClick={handleClick} />
     </>
   );
+}
+
+/**
+ * Screens that get the single horizontal line instead of wrapped systems:
+ * touch devices that are phone-sized in either orientation.
+ */
+const HORIZONTAL_QUERY =
+  "(pointer: coarse) and (max-width: 600px), (pointer: coarse) and (max-height: 600px)";
+
+/**
+ * In the horizontal layout, zooms the score so its single line fills the
+ * score area's height exactly, with no vertical scrolling. In the page layout
+ * it restores the default zoom. Returns whether it re-rendered.
+ */
+function fitToHeight(
+  osmd: OpenSheetMusicDisplay,
+  el: HTMLElement | null,
+): boolean {
+  const area = el?.parentElement;
+  const svg = el?.querySelector("svg");
+  if (!area || !svg) return false;
+  let zoom = 1;
+  if (osmd.EngravingRules.RenderSingleHorizontalStaffline) {
+    const height = svg.getBoundingClientRect().height;
+    if (!height || !area.clientHeight) return false;
+    zoom = (osmd.Zoom * area.clientHeight) / height;
+  }
+  // Skip tiny changes so a refit doesn't trigger another one.
+  if (Math.abs(zoom - osmd.Zoom) < 0.01) return false;
+  osmd.Zoom = zoom;
+  osmd.render();
+  return true;
 }
 
 /** Colors the notation with --score-text, which follows the system color scheme. */

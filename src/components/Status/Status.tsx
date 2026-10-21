@@ -30,13 +30,13 @@ export function Status({
   wrongNotes,
 }: Props) {
   const loopLabel = loop
-    ? ` · loop ${loop.startMeasure + 1}–${loop.endMeasure + 1}`
+    ? ` • Loop ${loop.startMeasure + 1}–${loop.endMeasure + 1}`
     : "";
 
   return (
     <section className="status">
       <span>
-        {midiMessage(midi)}
+        {midiMessage(midi)}{" "}
         {midi.status === "unavailable" && midi.error && (
           <span className="status-error">{midi.error}</span>
         )}
@@ -53,14 +53,14 @@ export function Status({
       </span>
       <span>
         {playing
-          ? `Playing…${loopLabel}`
+          ? `• Playing${loopLabel}`
           : finished
             ? "Finished! 🎉"
             : loaded
               ? `Measure ${currentMeasure + 1} / ${measureCount}${loopLabel}`
               : "Loading score…"}
-        {" · "}
-        {completedSteps} played, {wrongNotes} wrong
+        {" • "}
+        {completedSteps} Played / {wrongNotes} Wrong
       </span>
     </section>
   );
@@ -71,7 +71,7 @@ function midiMessage(midi: Props["midi"]): string {
     case "ready":
       return midi.inputs.length
         ? `MIDI: ${midi.inputs.map((i) => i.name).join(", ")}`
-        : "MIDI ready — no keyboard connected";
+        : "MIDI ready ";
     case "unsupported":
       return "Web MIDI not supported in this browser";
     case "denied":
