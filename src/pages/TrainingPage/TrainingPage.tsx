@@ -457,17 +457,6 @@ export function TrainingPage({
         onSoundChange={changeOnScreenSound}
       />
 
-      <section className="keyboard-area">
-        <Keyboard
-          keyStates={keyStates}
-          hands={hands}
-          labels={labels}
-          range={range}
-          onNoteOn={onScreenNoteOn}
-          onNoteOff={onScreenNoteOff}
-        />
-      </section>
-
       <section className="score-area">
         {scoreError && (
           <p className="error">Could not load score: {scoreError}</p>
@@ -491,7 +480,16 @@ export function TrainingPage({
           </p>
         )}
       </section>
-
+      <section className="keyboard-area">
+        <Keyboard
+          keyStates={keyStates}
+          hands={hands}
+          labels={labels}
+          range={range}
+          onNoteOn={onScreenNoteOn}
+          onNoteOff={onScreenNoteOff}
+        />
+      </section>
       <Status
         midi={midi}
         playing={playback.playing}
