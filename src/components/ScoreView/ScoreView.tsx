@@ -145,7 +145,8 @@ export function ScoreView({
     // OSMD's default page margins are 5 units (50px) per side, which wastes a
     // third of a phone's width. The .score padding already keeps notes off the edge.
     osmd.EngravingRules.PageTopMargin = 1;
-    osmd.EngravingRules.PageLeftMargin = 4;
+    osmd.EngravingRules.PageBottomMargin = 1;
+    osmd.EngravingRules.PageLeftMargin = 2;
     osmd.EngravingRules.PageRightMargin = 1;
     osmdRef.current = osmd;
 
@@ -343,7 +344,12 @@ export function ScoreView({
           <div
             key={i}
             className={`score-loop-band${b.start ? " start" : ""}${b.end ? " end" : ""}`}
-            style={{ left: b.left, top: b.top, width: b.width, height: b.height }}
+            style={{
+              left: b.left,
+              top: b.top,
+              width: b.width,
+              height: b.height,
+            }}
           />
         ))}
       </div>
@@ -481,7 +487,12 @@ function loopBandsFor(
     const index = measures[0].parentSourceMeasure.measureListIndex;
     if (index < loop.startMeasure || index > loop.endMeasure) continue;
 
-    const box: Box = { left: Infinity, right: -Infinity, top: Infinity, bottom: -Infinity };
+    const box: Box = {
+      left: Infinity,
+      right: -Infinity,
+      top: Infinity,
+      bottom: -Infinity,
+    };
     for (const gm of measures) {
       const shape = gm.PositionAndShape;
       const pos = shape.AbsolutePosition;
@@ -498,7 +509,10 @@ function loopBandsFor(
     // just before the note that follows it.
     if (index === loop.startMeasure && loop.startTimestamp !== undefined) {
       const at = loop.startTimestamp;
-      const left = entryEdge(measures, (t) => Math.abs(t - at) < TIMESTAMP_EPSILON);
+      const left = entryEdge(
+        measures,
+        (t) => Math.abs(t - at) < TIMESTAMP_EPSILON,
+      );
       if (left !== null) box.left = left - LOOP_PADDING_X;
     }
     if (index === loop.endMeasure && loop.endTimestamp !== undefined) {
@@ -557,7 +571,8 @@ function entryEdge(
       if (
         !best ||
         timestamp < best.timestamp - TIMESTAMP_EPSILON ||
-        (Math.abs(timestamp - best.timestamp) < TIMESTAMP_EPSILON && left < best.left)
+        (Math.abs(timestamp - best.timestamp) < TIMESTAMP_EPSILON &&
+          left < best.left)
       ) {
         best = { timestamp, left };
       }

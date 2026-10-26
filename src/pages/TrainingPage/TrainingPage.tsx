@@ -369,14 +369,6 @@ export function TrainingPage({
 
   return (
     <div className="training-page">
-      {/* Shown by CSS only on touch devices held in portrait. */}
-      {/* <div className="rotate-prompt" role="alert">
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <rect x="7" y="2" width="10" height="20" rx="2" />
-          <path d="M3 9a9 9 0 0 1 4-5M21 15a9 9 0 0 1-4 5" />
-        </svg>
-        <p>Rotate your device to landscape</p>
-      </div> */}
       {mode === null && (source || loading) && (
         <ModeDialog
           title={song?.title}

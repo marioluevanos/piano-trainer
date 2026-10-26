@@ -7,7 +7,7 @@
 
 .keyboard-area {
   background: linear-gradient(var(--keyboard-bg-top), var(--bg));
-  padding: 4px 12px 4px;
+  padding: 4px 12px 40px;
 }
 
 .score-area {
@@ -28,63 +28,6 @@
 .score-placeholder {
   margin: 12px 16px;
   color: var(--score-muted);
-}
-
-.rotate-prompt {
-  display: none;
-}
-
-@media (orientation: portrait) and (pointer: coarse) {
-  .rotate-prompt {
-    position: fixed;
-    inset: 0;
-    z-index: 1000;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 16px;
-    background: var(--bg);
-    color: var(--text);
-    text-align: center;
-    display: none;
-  }
-
-  .rotate-prompt svg {
-    width: 64px;
-    height: 64px;
-    fill: none;
-    stroke: var(--accent);
-    stroke-width: 1.5;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-    animation: rotate-hint 2s ease-in-out infinite;
-  }
-
-  .rotate-prompt p {
-    margin: 0;
-    color: var(--muted);
-  }
-}
-
-@keyframes rotate-hint {
-  0%,
-  20% {
-    transform: rotate(0deg);
-  }
-  50%,
-  70% {
-    transform: rotate(-90deg);
-  }
-  100% {
-    transform: rotate(0deg);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .rotate-prompt svg {
-    animation: none;
-  }
 }
 
 /* Beside the toolbar toggle, and under the toolbar when it slides in. */

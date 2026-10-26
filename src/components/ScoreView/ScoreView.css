@@ -20,7 +20,7 @@
    taking vertical space, and stays visible while scrolling. */
 .score-info {
   position: fixed;
-  top: 108px;
+  top: 8px;
   left: 8px;
   z-index: 2;
   height: 0;
@@ -37,7 +37,7 @@
 }
 
 .score-info-button {
-  margin-top: 8px;
+  margin-top: 0;
 }
 
 .score-info-panel {
