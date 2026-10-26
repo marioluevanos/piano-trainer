@@ -41,6 +41,9 @@ interface Props {
   onFullKeyboardChange: (full: boolean) => void;
   onSoundChange: (sound: boolean) => void;
   onKeyLabelsChange: (show: boolean) => void;
+  /** Whether the sheet music is drawn light on dark. */
+  darkScore: boolean;
+  onDarkScoreChange: (dark: boolean) => void;
 }
 
 /** Where the cursor is, in the terms a loop is set in. */
@@ -80,6 +83,8 @@ export function Toolbar({
   onFullKeyboardChange,
   onSoundChange,
   onKeyLabelsChange,
+  darkScore,
+  onDarkScoreChange,
 }: Props) {
   // Left and right are independent toggles; at least one hand always stays selected.
   const leftOn = handMode !== "right";
@@ -292,6 +297,14 @@ export function Toolbar({
                 onChange={(e) => onKeyLabelsChange(e.target.checked)}
               />
               Note names
+            </label>
+            <label title="Draw the sheet music light on a dark background">
+              <input
+                type="checkbox"
+                checked={darkScore}
+                onChange={(e) => onDarkScoreChange(e.target.checked)}
+              />
+              Dark score
             </label>
           </div>
         </SettingsMenu>

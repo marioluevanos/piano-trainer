@@ -32,6 +32,8 @@ interface ScoreViewProps {
   source: Promise<string | Blob>;
   /** Step whose notes the cursor should highlight. */
   cursorStep: number;
+  /** Whether the score area uses the dark palette; the notation is redrawn when it changes. */
+  dark?: boolean;
   /** The loop to shade on the score, or null for none. */
   loop?: LoopRange | null;
   onReady: (info: ScoreInfo) => void;
@@ -44,6 +46,7 @@ interface ScoreViewProps {
 export function ScoreView({
   source,
   cursorStep,
+  dark = false,
   loop = null,
   onReady,
   onScoreClick,
@@ -206,20 +209,16 @@ export function ScoreView({
     if (target) onScoreClickRef.current(target);
   };
 
-  // Redraw in the new colors when the system switches between light and dark.
+  // Redraw in the new colors when the dark score setting changes. The parent's
+  // class has already switched, so --score-text holds the new color.
   // render() keeps the cursor where it was.
   useEffect(() => {
-    const query = window.matchMedia("(prefers-color-scheme: dark)");
-    const onChange = () => {
-      const osmd = osmdRef.current;
-      const el = containerRef.current;
-      if (!osmd || !el || !readyRef.current) return;
-      applyScoreColors(osmd, el);
-      osmd.render();
-    };
-    query.addEventListener("change", onChange);
-    return () => query.removeEventListener("change", onChange);
-  }, []);
+    const osmd = osmdRef.current;
+    const el = containerRef.current;
+    if (!osmd || !el || !readyRef.current) return;
+    applyScoreColors(osmd, el);
+    osmd.render();
+  }, [dark]);
 
   // Switch between the horizontal and page layouts when the screen changes,
   // e.g. a tablet rotating or a desktop window narrowing to phone size.
@@ -386,7 +385,7 @@ function fitToHeight(
   return true;
 }
 
-/** Colors the notation with --score-text, which follows the system color scheme. */
+/** Colors the notation with --score-text, which follows the dark score setting. */
 function applyScoreColors(osmd: OpenSheetMusicDisplay, el: HTMLElement) {
   const color = getComputedStyle(el).getPropertyValue("--score-text").trim();
   osmd.setOptions({ defaultColorMusic: color });
@@ -453,7 +452,8 @@ interface LoopBand {
 
 /** How far the shading reaches past the staves and notes, in OSMD units. */
 const LOOP_PADDING_Y = 2;
-const LOOP_PADDING_X = 0.6;
+// Half the width of OSMD's cursor, so a mid-measure edge clears the cursor on its note.
+const LOOP_PADDING_X = 1.5;
 const TIMESTAMP_EPSILON = 1e-6;
 
 /**
@@ -501,6 +501,10 @@ function loopBandsFor(
       box.top = Math.min(box.top, pos.y + shape.BorderTop);
       box.bottom = Math.max(box.bottom, pos.y + shape.BorderBottom);
     }
+    // beginInstructionsWidth can overshoot, e.g. with a start repeat after the
+    // clef, so never let the band begin past the measure's first note.
+    const first = entryEdge(measures, () => true);
+    if (first !== null) box.left = Math.min(box.left, first - LOOP_PADDING_X);
     // A mid-measure start begins just before its note; a mid-measure end stops
     // just before the note that follows it.
     if (index === loop.startMeasure && loop.startTimestamp !== undefined) {
@@ -552,7 +556,11 @@ function loopBandsFor(
   });
 }
 
-/** Left edge, across a measure's staves, of the first note whose timestamp matches. */
+/**
+ * X, across a measure's staves, of the first note whose timestamp matches. This
+ * is the anchor OSMD centers its cursor on; a staff entry's BorderLeft does not
+ * follow the note, so it is not used.
+ */
 function entryEdge(
   measures: GraphicalMeasure[],
   matches: (timestamp: number) => boolean,
@@ -562,8 +570,7 @@ function entryEdge(
     for (const entry of gm.staffEntries) {
       const timestamp = entry.getAbsoluteTimestamp().RealValue;
       if (!matches(timestamp)) continue;
-      const shape = entry.PositionAndShape;
-      const left = shape.AbsolutePosition.x + shape.BorderLeft;
+      const left = entry.PositionAndShape.AbsolutePosition.x;
       if (
         !best ||
         timestamp < best.timestamp - TIMESTAMP_EPSILON ||

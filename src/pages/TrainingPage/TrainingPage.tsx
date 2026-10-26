@@ -42,13 +42,15 @@ import "./TrainingPage.css";
 const FULL_KEYBOARD_KEY = "piano-trainer.full-keyboard.v1";
 const KEYBOARD_SOUND_KEY = "piano-trainer.keyboard-sound.v1";
 const KEY_LABELS_KEY = "piano-trainer.key-labels.v1";
+const DARK_SCORE_KEY = "piano-trainer.dark-score.v1";
 
-/** Reads a remembered on/off setting, `true` unless it was turned off. */
-function loadSetting(key: string): boolean {
+/** Reads a remembered on/off setting, `fallback` until it is first changed. */
+function loadSetting(key: string, fallback = true): boolean {
   try {
-    return localStorage.getItem(key) !== "false";
+    const saved = localStorage.getItem(key);
+    return saved === null ? fallback : saved === "true";
   } catch {
-    return true;
+    return fallback;
   }
 }
 
@@ -130,6 +132,13 @@ export function TrainingPage({
   const changeKeyLabels = useCallback((show: boolean) => {
     setKeyLabels(show);
     saveSetting(KEY_LABELS_KEY, show);
+  }, []);
+  const [darkScore, setDarkScore] = useState(() =>
+    loadSetting(DARK_SCORE_KEY, false),
+  );
+  const changeDarkScore = useCallback((dark: boolean) => {
+    setDarkScore(dark);
+    saveSetting(DARK_SCORE_KEY, dark);
   }, []);
   const [speed, setSpeed] = useState(1);
 
@@ -409,15 +418,18 @@ export function TrainingPage({
         onFullKeyboardChange={changeFullKeyboard}
         onSoundChange={changeOnScreenSound}
         onKeyLabelsChange={changeKeyLabels}
+        darkScore={darkScore}
+        onDarkScoreChange={changeDarkScore}
       />
 
-      <section className="score-area">
+      <section className={darkScore ? "score-area score-dark" : "score-area"}>
         {scoreError && (
           <p className="error">Could not load score: {scoreError}</p>
         )}
         {source ? (
           <ScoreView
             source={source}
+            dark={darkScore}
             cursorStep={engine.stepIndex}
             loop={loop}
             onReady={handleReady}

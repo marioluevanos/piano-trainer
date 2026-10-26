@@ -50,23 +50,19 @@
   color-scheme: dark;
 }
 
-/* Dark mode applies to the sheet music only; the UI and keyboard stay as is. */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --score-bg: #000;
-    --score-text: #e4e4e7;
-    --score-ledger-line: #888;
-    --score-surface: #1c1f27;
-    --score-border: #343949;
-    --score-muted: #a1a1aa;
-    --score-accent: #2dd4bf;
-    --score-shadow: rgb(0 0 0 / 0.5);
-    --score-error: #f87171;
-  }
-
-  .score-area {
-    color-scheme: dark;
-  }
+/* Dark sheet music, turned on in the settings panel. It applies to the score
+   only; the UI and keyboard stay as is. */
+.score-area.score-dark {
+  --score-bg: #000;
+  --score-text: #e4e4e7;
+  --score-ledger-line: #888;
+  --score-surface: #1c1f27;
+  --score-border: #343949;
+  --score-muted: #a1a1aa;
+  --score-accent: #2dd4bf;
+  --score-shadow: rgb(0 0 0 / 0.5);
+  --score-error: #f87171;
+  color-scheme: dark;
 }
 
 * {
