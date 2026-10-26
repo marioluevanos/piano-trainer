@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { makeCover } from "../../songs/cover";
 import type { SongDetails } from "../../songs/library";
 import { Button } from "../Button/Button";
+import { CloseIcon } from "../Icons/CloseIcon";
+import { PlusIcon } from "../Icons/PlusIcon";
 import "./SongDialog.css";
 
 interface Props {
@@ -115,9 +117,7 @@ export function SongDialog({
                 <img src={preview} alt="" />
               ) : (
                 <span className="cover-pick-empty">
-                  <svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true">
-                    <path fill="currentColor" d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z" />
-                  </svg>
+                  <PlusIcon size={28} />
                   Add cover
                 </span>
               )}
@@ -133,12 +133,7 @@ export function SongDialog({
                 title="Remove cover image"
                 disabled={busy}
               >
-                <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-                  <path
-                    fill="currentColor"
-                    d="m6.4 5 5.6 5.6L17.6 5 19 6.4 13.4 12l5.6 5.6-1.4 1.4-5.6-5.6L6.4 19 5 17.6l5.6-5.6L5 6.4 6.4 5Z"
-                  />
-                </svg>
+                <CloseIcon size={16} />
               </Button>
             )}
           </div>

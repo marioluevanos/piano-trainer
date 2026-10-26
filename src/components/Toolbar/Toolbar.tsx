@@ -2,6 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import type { HandMode, LoopRange } from "../../engine/types";
 import { Button } from "../Button/Button";
 import { SettingsMenu } from "../SettingsMenu/SettingsMenu";
+import { ChevronLeftIcon } from "../Icons/ChevronLeftIcon";
+import { GearIcon } from "../Icons/GearIcon";
+import { PlayIcon } from "../Icons/PlayIcon";
+import { StopIcon } from "../Icons/StopIcon";
 import "./Toolbar.css";
 
 interface Props {
@@ -175,12 +179,7 @@ export function Toolbar({
         aria-expanded={open}
         title={open ? "Hide toolbar" : "Show toolbar"}
       >
-        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-          <path
-            fill="currentColor"
-            d="M19.14 12.94a7.5 7.5 0 0 0 0-1.88l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.03 7.03 0 0 0-1.63-.94l-.36-2.54A.5.5 0 0 0 13.9 2.4h-3.84a.5.5 0 0 0-.49.42l-.36 2.54c-.59.24-1.13.56-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.67 8.88a.5.5 0 0 0 .12.64l2.03 1.58a7.5 7.5 0 0 0 0 1.88l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32c.13.22.39.3.6.22l2.39-.96c.5.38 1.04.7 1.63.94l.36 2.54c.04.24.25.42.49.42h3.84c.24 0 .45-.18.49-.42l.36-2.54c.59-.24 1.13-.56 1.63-.94l2.39.96c.22.08.47 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58ZM12 15.6a3.6 3.6 0 1 1 0-7.2 3.6 3.6 0 0 1 0 7.2Z"
-          />
-        </svg>
+        <GearIcon />
       </Button>
 
       {/* Slides in from the bottom while open; inert while hidden so it cannot be tabbed into. */}
@@ -195,12 +194,7 @@ export function Toolbar({
           aria-label="Songs"
           title="Back to the song list"
         >
-          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-            <path
-              fill="currentColor"
-              d="M15.4 7.4 14 6l-6 6 6 6 1.4-1.4-4.6-4.6z"
-            />
-          </svg>
+          <ChevronLeftIcon />
         </Button>
         <span className="toolbar-title">{title}</span>
 
@@ -383,12 +377,7 @@ export function Toolbar({
             aria-label={playing ? "Stop" : "Play"}
             title="Play the song from the cursor (the selected hands only)"
           >
-            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-              <path
-                fill="currentColor"
-                d={playing ? "M6 6h12v12H6z" : "M8 5v14l11-7z"}
-              />
-            </svg>
+            {playing ? <StopIcon /> : <PlayIcon />}
           </Button>
         </div>
       </header>

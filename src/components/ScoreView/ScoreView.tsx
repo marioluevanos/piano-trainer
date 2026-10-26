@@ -8,6 +8,7 @@ import { buildSteps } from "../../score/buildSteps";
 import { Button } from "../Button/Button";
 import { createSmoothScroller, type SmoothScroller } from "./smoothScroller";
 import type { EndingSet, LoopRange, Step } from "../../engine/types";
+import { InfoIcon } from "../Icons/InfoIcon";
 import "./ScoreView.css";
 
 /** Where a click landed on the score. */
@@ -318,12 +319,7 @@ export function ScoreView({
             aria-expanded={infoOpen}
             title="Song info"
           >
-            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-              <path
-                fill="currentColor"
-                d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 15h-2v-6h2v6Zm0-8h-2V7h2v2Z"
-              />
-            </svg>
+            <InfoIcon size={18} />
           </Button>
           {infoOpen && (
             <div

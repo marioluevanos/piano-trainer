@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "../Button/Button";
+import { MoreIcon } from "../Icons/MoreIcon";
 import "./SongMenu.css";
 
 interface Props {
@@ -54,12 +55,7 @@ export function SongMenu({ title, onEdit, onRemove }: Props) {
         aria-expanded={open}
         title="More actions"
       >
-        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-          <path
-            fill="currentColor"
-            d="M12 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm0 6a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm0 6a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"
-          />
-        </svg>
+        <MoreIcon />
       </Button>
       {open && (
         <div className="song-menu-panel" role="menu" aria-label={title}>

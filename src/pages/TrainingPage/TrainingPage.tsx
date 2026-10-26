@@ -38,6 +38,10 @@ import { useMidiInput } from "../../midi/useMidiInput";
 import { usePlayback } from "../../midi/usePlayback";
 import { synthNoteOff, synthNoteOn, unlockAudio } from "../../midi/synth";
 import type { Song } from "../../songs";
+import { ChevronLeftIcon } from "../../components/Icons/ChevronLeftIcon";
+import { ChevronRightIcon } from "../../components/Icons/ChevronRightIcon";
+import { PlayIcon } from "../../components/Icons/PlayIcon";
+import { StopIcon } from "../../components/Icons/StopIcon";
 import "./TrainingPage.css";
 
 const FULL_KEYBOARD_KEY = "piano-trainer.full-keyboard.v1";
@@ -389,12 +393,7 @@ export function TrainingPage({
             aria-label="Previous note"
             title="Previous note (←)"
           >
-            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-              <path
-                fill="currentColor"
-                d="M15.4 7.4 14 6l-6 6 6 6 1.4-1.4-4.6-4.6z"
-              />
-            </svg>
+            <ChevronLeftIcon />
           </Button>
           <Button
             size="lg"
@@ -405,12 +404,7 @@ export function TrainingPage({
             aria-label="Next note"
             title="Next note (→)"
           >
-            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-              <path
-                fill="currentColor"
-                d="M8.6 16.6 10 18l6-6-6-6-1.4 1.4 4.6 4.6z"
-              />
-            </svg>
+            <ChevronRightIcon />
           </Button>
           <Button
             size="lg"
@@ -422,12 +416,7 @@ export function TrainingPage({
             aria-label={playback.playing ? "Stop" : "Play"}
             title={playback.playing ? "Stop" : "Play the song"}
           >
-            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-              <path
-                fill="currentColor"
-                d={playback.playing ? "M6 6h12v12H6z" : "M8 5v14l11-7z"}
-              />
-            </svg>
+            {playback.playing ? <StopIcon /> : <PlayIcon />}
           </Button>
         </div>
       )}

@@ -6,6 +6,10 @@ import { readSongFile, type ImportedSong, type SongDetails } from "../../songs/l
 import { Button } from "../../components/Button/Button";
 import { SongDialog } from "../../components/SongDialog/SongDialog";
 import { SongMenu } from "../../components/SongMenu/SongMenu";
+import { GridIcon } from "../../components/Icons/GridIcon";
+import { ListIcon } from "../../components/Icons/ListIcon";
+import { PencilIcon } from "../../components/Icons/PencilIcon";
+import { TrashIcon } from "../../components/Icons/TrashIcon";
 import "./HomePage.css";
 
 type Layout = "list" | "grid";
@@ -161,17 +165,7 @@ export function HomePage({
               aria-label={`Edit ${s.title}`}
               title="Edit the title or cover"
             >
-              <svg
-                viewBox="0 0 24 24"
-                width="18"
-                height="18"
-                aria-hidden="true"
-              >
-                <path
-                  fill="currentColor"
-                  d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25ZM20.7 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83Z"
-                />
-              </svg>
+              <PencilIcon size={18} />
             </Button>
           )}
           {s.user && layout === "list" && (
@@ -183,17 +177,7 @@ export function HomePage({
               aria-label={`Remove ${s.title}`}
               title="Remove this song from your songs"
             >
-              <svg
-                viewBox="0 0 24 24"
-                width="18"
-                height="18"
-                aria-hidden="true"
-              >
-                <path
-                  fill="currentColor"
-                  d="M9 3v1H4v2h16V4h-5V3H9ZM6 8l1 13h10l1-13H6Zm4 2h1v9h-1v-9Zm3 0h1v9h-1v-9Z"
-                />
-              </svg>
+              <TrashIcon size={18} />
             </Button>
           )}
         </li>
@@ -255,12 +239,7 @@ export function HomePage({
                       aria-label="List"
                       title="Show songs as a list"
                     >
-                      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-                        <path
-                          fill="currentColor"
-                          d="M3 5h4v4H3V5Zm6 1h12v2H9V6Zm-6 4h4v4H3v-4Zm6 1h12v2H9v-2Zm-6 4h4v4H3v-4Zm6 1h12v2H9v-2Z"
-                        />
-                      </svg>
+                      <ListIcon size={18} />
                     </Button>
                     <Button
                       variant="ghost"
@@ -272,12 +251,7 @@ export function HomePage({
                       aria-label="Grid"
                       title="Show songs as a grid of covers"
                     >
-                      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-                        <path
-                          fill="currentColor"
-                          d="M3 3h8v8H3V3Zm10 0h8v8h-8V3ZM3 13h8v8H3v-8Zm10 0h8v8h-8v-8Z"
-                        />
-                      </svg>
+                      <GridIcon size={18} />
                     </Button>
                   </div>
                   {user && (

@@ -1,4 +1,6 @@
 import { useEffect, useRef } from "react";
+import { PianoIcon } from "../Icons/PianoIcon";
+import { PlayIcon } from "../Icons/PlayIcon";
 import "./ModeDialog.css";
 
 export type TrainingMode = "practice" | "listen";
@@ -42,23 +44,7 @@ export function ModeDialog({ title, practiceHint, onChoose }: Props) {
           autoFocus
           onClick={() => onChoose("practice")}
         >
-          <svg
-            viewBox="0 0 24 24"
-            width="32"
-            height="32"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.75"
-            aria-hidden="true"
-          >
-            <rect x="3" y="4" width="18" height="16" rx="2" />
-            <path d="M9 13v7M15 13v7" />
-            <path
-              fill="currentColor"
-              stroke="none"
-              d="M7.5 4h3v9h-3zM13.5 4h3v9h-3z"
-            />
-          </svg>
+          <PianoIcon size={32} />
           <span className="mode-label">Play with piano</span>
           <span className="mode-hint">{practiceHint}</span>
         </button>
@@ -67,9 +53,7 @@ export function ModeDialog({ title, practiceHint, onChoose }: Props) {
           className="mode-option"
           onClick={() => onChoose("listen")}
         >
-          <svg viewBox="0 0 24 24" width="32" height="32" aria-hidden="true">
-            <path fill="currentColor" d="M8 5v14l11-7z" />
-          </svg>
+          <PlayIcon size={32} />
           <span className="mode-label">Listen</span>
           <span className="mode-hint">Hear the song play along the score</span>
         </button>
