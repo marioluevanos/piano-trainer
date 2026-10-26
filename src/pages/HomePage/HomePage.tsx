@@ -86,6 +86,24 @@ function SongCover({ song }: { song: Song }) {
   );
 }
 
+/** Stand-ins for a song list while it loads, in the chosen layout. */
+function SongListSkeleton({ layout, count }: { layout: Layout; count: number }) {
+  return (
+    <ul className={`song-list ${layout} skeleton`} aria-hidden="true">
+      {Array.from({ length: count }, (_, i) => (
+        <li key={i}>
+          <span className="song-open">
+            <span className="song-cover bone" />
+            <span className="song-text">
+              <span className="song-title bone">&nbsp;</span>
+            </span>
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 /** The edit dialog for one of the user's songs, previewing its current cover. */
 function EditSongDialog({
   song,
@@ -237,73 +255,72 @@ export function HomePage({
 
       <main className="home-body">
         {(pickError ?? error) && <p className="home-error">{pickError ?? error}</p>}
-        {loading ? (
-          <p className="home-placeholder">Loading songs…</p>
-        ) : (
-          <>
-            <section>
-              <div className="home-section-head">
-                <h2>Your songs</h2>
-                <div className="home-section-tools">
-                  <div className="layout-toggle" role="group" aria-label="Song layout">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      icon
-                      active={layout === "list"}
-                      aria-pressed={layout === "list"}
-                      onClick={() => chooseLayout("list")}
-                      aria-label="List"
-                      title="Show songs as a list"
-                    >
-                      <ListIcon size={18} />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      icon
-                      active={layout === "grid"}
-                      aria-pressed={layout === "grid"}
-                      onClick={() => chooseLayout("grid")}
-                      aria-label="Grid"
-                      title="Show songs as a grid of covers"
-                    >
-                      <GridIcon size={18} />
-                    </Button>
-                  </div>
-                  {user && (
-                    <Button
-                      variant="primary"
-                      onClick={() => fileInputRef.current?.click()}
-                      title="Load a .musicxml, .xml or .mxl file"
-                    >
-                      Upload song
-                    </Button>
-                  )}
-                </div>
+        {loading && <p className="visually-hidden" role="status">Loading songs…</p>}
+        <section>
+          <div className="home-section-head">
+            <h2>Your songs</h2>
+            <div className="home-section-tools">
+              <div className="layout-toggle" role="group" aria-label="Song layout">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon
+                  active={layout === "list"}
+                  aria-pressed={layout === "list"}
+                  onClick={() => chooseLayout("list")}
+                  aria-label="List"
+                  title="Show songs as a list"
+                >
+                  <ListIcon size={18} />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon
+                  active={layout === "grid"}
+                  aria-pressed={layout === "grid"}
+                  onClick={() => chooseLayout("grid")}
+                  aria-label="Grid"
+                  title="Show songs as a grid of covers"
+                >
+                  <GridIcon size={18} />
+                </Button>
               </div>
-              {own.length ? (
-                list(own)
-              ) : (
-                <p className="home-placeholder">
-                  {user
-                    ? "Songs you load from a MusicXML file appear here."
-                    : "Sign in to upload your own songs."}
-                </p>
+              {user && (
+                <Button
+                  variant="primary"
+                  onClick={() => fileInputRef.current?.click()}
+                  title="Load a .musicxml, .xml or .mxl file"
+                >
+                  Upload song
+                </Button>
               )}
-            </section>
-            <section>
-              <div className="home-section-head">
-                <h2>Library</h2>
-              </div>
-              {shared.length ? (
-                list(shared)
-              ) : (
-                <p className="home-placeholder">The library is empty.</p>
-              )}
-            </section>
-          </>
-        )}
+            </div>
+          </div>
+          {loading ? (
+            <SongListSkeleton layout={layout} count={2} />
+          ) : own.length ? (
+            list(own)
+          ) : (
+            <p className="home-placeholder">
+              {user
+                ? "Songs you load from a MusicXML file appear here."
+                : "Sign in to upload your own songs."}
+            </p>
+          )}
+        </section>
+        <section>
+          <div className="home-section-head">
+            <h2>Library</h2>
+          </div>
+          {loading ? (
+            <SongListSkeleton layout={layout} count={6} />
+          ) : shared.length ? (
+            list(shared)
+          ) : (
+            <p className="home-placeholder">The library is empty.</p>
+          )}
+        </section>
         <p className="build-info">Build {__BUILD_TIME__}</p>
       </main>
 

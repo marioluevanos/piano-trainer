@@ -1,10 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Keyboard, noteName } from "../../components/Keyboard/Keyboard";
 import {
-  ModeDialog,
-  type TrainingMode,
-} from "../../components/ModeDialog/ModeDialog";
-import {
   ScoreView,
   type ScoreClick,
   type ScoreInfo,
@@ -35,7 +31,7 @@ import type {
 } from "../../engine/types";
 import { useMidiInput } from "../../midi/useMidiInput";
 import { usePlayback } from "../../midi/usePlayback";
-import { synthNoteOff, synthNoteOn, unlockAudio } from "../../midi/synth";
+import { synthNoteOff, synthNoteOn } from "../../midi/synth";
 import type { Song } from "../../songs";
 import "./TrainingPage.css";
 
@@ -144,11 +140,6 @@ export function TrainingPage({
 
   const [engine, setEngine] = useState<EngineState>(() => initialState());
 
-  // Chosen when the page opens: practice on the piano, or listen to the song.
-  const [mode, setMode] = useState<TrainingMode | null>(null);
-  // Listen was chosen before the score finished loading; play once it is ready.
-  const [listenPending, setListenPending] = useState(false);
-
   // Engine inputs are read through refs so MIDI callbacks always see fresh values.
   const optsRef = useRef({ handMode, loop });
   optsRef.current = { handMode, loop };
@@ -193,26 +184,6 @@ export function TrainingPage({
       jumpTo(steps, loop ? loopStart(steps, loop) : 0, { handMode, loop }),
     );
   }, [handMode, loop, steps, stopPlayback]);
-
-  // Runs after the reset above, so the playback it starts is not stopped again.
-  // Only the request and the score's arrival trigger it; the options are read as they are.
-  useEffect(() => {
-    if (!listenPending || steps.length === 0) return;
-    setListenPending(false);
-    playback.play(steps, loop ? loopStart(steps, loop) : 0, {
-      handMode,
-      loop,
-      speed,
-    });
-  }, [listenPending, steps]);
-
-  const chooseMode = (chosen: TrainingMode) => {
-    setMode(chosen);
-    if (chosen === "listen") {
-      unlockAudio();
-      setListenPending(true);
-    }
-  };
 
   const handleReady = useCallback((info: ScoreInfo) => {
     setScoreError(null);
@@ -359,7 +330,6 @@ export function TrainingPage({
 
   // Arrow keys nudge the cursor, except while a control has focus.
   useEffect(() => {
-    if (mode === null) return;
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
       const delta =
@@ -372,7 +342,7 @@ export function TrainingPage({
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [mode]);
+  }, []);
 
   const togglePlayback = () =>
     playback.playing ? playback.stop() : startPlayback(speed);
@@ -385,14 +355,6 @@ export function TrainingPage({
 
   return (
     <div className="training-page">
-      {mode === null && (source || loading) && (
-        <ModeDialog
-          title={song?.title}
-          practiceHint={practiceHint(midi)}
-          onChoose={chooseMode}
-        />
-      )}
-
       <Toolbar
         playing={playback.playing}
         canPlay={steps.length > 0}
@@ -470,12 +432,6 @@ export function TrainingPage({
       />
     </div>
   );
-}
-
-function practiceHint(midi: ReturnType<typeof useMidiInput>): string {
-  if (midi.status === "ready" && midi.inputs.length)
-    return midi.inputs.map((i) => i.name).join(", ");
-  return "MIDI keyboard or the on-screen keys";
 }
 
 function loopStart(steps: Step[], loop: LoopRange): number {

@@ -44,7 +44,11 @@
   position: absolute;
   left: 1.5rem;
   top: 1.5rem;
-  white-space: nowrap;
+  /* Size to the longest credit line, but wrap rather than run past the right
+     edge of the viewport (8px .score-info inset + left offset + 8px gutter). */
+  width: max-content;
+  max-width: calc(100vw - 1.5rem - 16px);
+  overflow-wrap: break-word;
   padding: 8px 16px;
   background: var(--score-surface);
   border: 1px solid var(--score-border);

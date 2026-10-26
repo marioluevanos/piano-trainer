@@ -15,7 +15,7 @@
   /* Positioned so the loop shading scrolls with the score. */
   position: relative;
   flex: 1;
-  overflow: auto hidden;
+  overflow: auto;
   background: var(--score-bg);
   color: var(--score-text);
   color-scheme: light;
