@@ -20,7 +20,12 @@ import {
 import { auth, db } from "../firebase";
 import { decodeScore, gzipText, type Song } from "./index";
 import { isMusicXml, songTitle } from "./metadata";
-import { LIBRARY_DOC, MAX_COVER_BYTES, MAX_SCORE_BYTES, userDoc } from "./paths";
+import {
+  LIBRARY_DOC,
+  MAX_COVER_BYTES,
+  MAX_SCORE_BYTES,
+  userDoc,
+} from "./paths";
 
 const SELECTED_KEY = "piano-trainer.selected-song.v1";
 
@@ -73,12 +78,21 @@ export async function readSongFile(file: File): Promise<ImportedSong> {
       `${file.name} is not a MusicXML file. Export MusicXML from MuseScore (File → Export).`,
     );
   }
-  return { id, title: songTitle(text, fallback), format: "xml", bytes: await gzipText(text) };
+  return {
+    id,
+    title: songTitle(text, fallback),
+    format: "xml",
+    bytes: await gzipText(text),
+  };
 }
 
 /* ---------- Songs in Firestore ---------- */
 
-function cloudSong(snap: QueryDocumentSnapshot, base: string, user: boolean): Song {
+function cloudSong(
+  snap: QueryDocumentSnapshot,
+  base: string,
+  user: boolean,
+): Song {
   const { title, format, coverVersion } = snap.data() as Pick<
     Song,
     "title" | "format" | "coverVersion"
@@ -100,14 +114,17 @@ function cloudSong(snap: QueryDocumentSnapshot, base: string, user: boolean): So
         const cover = await getDoc(doc(db, base, "covers", snap.id));
         const bytes = cover.get("data") as Bytes | undefined;
         if (!bytes) throw new Error(`the cover for "${title}" is missing`);
-        return new Blob([new Uint8Array(bytes.toUint8Array())], { type: cover.get("type") });
+        return new Blob([new Uint8Array(bytes.toUint8Array())], {
+          type: cover.get("type"),
+        });
       },
     }),
   };
 }
 
 async function coverDoc(cover: Blob) {
-  if (cover.size > MAX_COVER_BYTES) throw new Error("The cover image is too large.");
+  if (cover.size > MAX_COVER_BYTES)
+    throw new Error("The cover image is too large.");
   const bytes = new Uint8Array(await cover.arrayBuffer());
   return { data: Bytes.fromUint8Array(bytes), type: cover.type };
 }
@@ -117,7 +134,11 @@ function checkTitle(title: string) {
 }
 
 /** Save a song, and its cover if any, to the signed-in user's library in Firestore. */
-async function uploadSong(uid: string, song: ImportedSong, { title, cover }: SongDetails) {
+async function uploadSong(
+  uid: string,
+  song: ImportedSong,
+  { title, cover }: SongDetails,
+) {
   const { bytes } = song;
   checkTitle(title);
   if (bytes.length > MAX_SCORE_BYTES) {
@@ -132,13 +153,16 @@ async function uploadSong(uid: string, song: ImportedSong, { title, cover }: Son
     createdAt: serverTimestamp(),
     ...(coverVersion && { coverVersion }),
   });
-  batch.set(doc(db, base, "scores", song.id), { data: Bytes.fromUint8Array(bytes) });
+  batch.set(doc(db, base, "scores", song.id), {
+    data: Bytes.fromUint8Array(bytes),
+  });
   if (cover) batch.set(doc(db, base, "covers", song.id), await coverDoc(cover));
   await batch.commit();
   return coverVersion;
 }
 
-const message = (err: unknown) => (err instanceof Error ? err.message : String(err));
+const message = (err: unknown) =>
+  err instanceof Error ? err.message : String(err);
 
 /**
  * The song list: the shared library from Firestore, plus the songs the
@@ -183,8 +207,14 @@ export function useSongLibrary() {
       (snap) =>
         setCloud(
           snap.docs
-            .map((d) => ({ song: cloudSong(d, base, true), at: d.get("createdAt") }))
-            .sort((a, b) => (a.at?.toMillis() ?? Infinity) - (b.at?.toMillis() ?? Infinity))
+            .map((d) => ({
+              song: cloudSong(d, base, true),
+              at: d.get("createdAt"),
+            }))
+            .sort(
+              (a, b) =>
+                (a.at?.toMillis() ?? Infinity) - (b.at?.toMillis() ?? Infinity),
+            )
             .map(({ song }) => song),
         ),
       (err) => {
@@ -208,7 +238,8 @@ export function useSongLibrary() {
         format,
         user: true,
         load: () => decodeScore(format, bytes),
-        ...(coverVersion && cover && { coverVersion, loadCover: async () => cover }),
+        ...(coverVersion &&
+          cover && { coverVersion, loadCover: async () => cover }),
       };
     },
     [user],
@@ -223,7 +254,9 @@ export function useSongLibrary() {
       const batch = writeBatch(db);
       batch.update(doc(db, base, "songs", id), {
         title: title.trim(),
-        ...(cover !== undefined && { coverVersion: cover ? Date.now() : deleteField() }),
+        ...(cover !== undefined && {
+          coverVersion: cover ? Date.now() : deleteField(),
+        }),
       });
       if (cover) batch.set(doc(db, base, "covers", id), await coverDoc(cover));
       else if (cover === null) batch.delete(doc(db, base, "covers", id));
@@ -252,7 +285,10 @@ export function useSongLibrary() {
       setError(null);
     } catch (err) {
       const code = (err as { code?: string }).code;
-      if (code !== "auth/popup-closed-by-user" && code !== "auth/cancelled-popup-request") {
+      if (
+        code !== "auth/popup-closed-by-user" &&
+        code !== "auth/cancelled-popup-request"
+      ) {
         setError(`Could not sign in: ${message(err)}`);
       }
     }
@@ -265,7 +301,8 @@ export function useSongLibrary() {
   return {
     songs: [...(shared ?? []), ...(cloud ?? [])],
     /** True until the shared list, the session and (if signed in) the user's songs are known. */
-    loading: user === undefined || shared === null || (!!user && cloud === null),
+    loading:
+      user === undefined || shared === null || (!!user && cloud === null),
     user: user ?? null,
     signIn,
     signOut,

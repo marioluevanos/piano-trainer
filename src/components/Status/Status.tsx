@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import type { LoopRange } from "../../engine/types";
 import type { useMidiInput } from "../../midi/useMidiInput";
 import { Button } from "../Button/Button";
 import { CloseIcon } from "../Icons/CloseIcon";
@@ -7,18 +6,6 @@ import "./Status.css";
 
 interface Props {
   midi: ReturnType<typeof useMidiInput>;
-  playing: boolean;
-  finished: boolean;
-  /** False until the score is ready. */
-  loaded: boolean;
-  loop: LoopRange | null;
-  /** 1-based note numbers the loop starts and ends on, when mid-measure. */
-  loopNotes: { start: number | null; end: number | null };
-  /** The measure under the cursor, zero-based. */
-  currentMeasure: number;
-  measureCount: number;
-  completedSteps: number;
-  wrongNotes: number;
 }
 
 /** How long a status notification stays up before it dismisses itself. */
@@ -28,25 +15,7 @@ const DISMISS_AFTER_MS = 7_000;
  * A notification above the toolbar that pops up whenever the MIDI connection
  * status changes and dismisses itself after a while, or when closed.
  */
-export function Status({
-  midi,
-  // playing,
-  // finished,
-  // loaded,
-  // loop,
-  // loopNotes,
-  // currentMeasure,
-  // measureCount,
-  // completedSteps,
-  // wrongNotes,
-}: Props) {
-  // A mid-measure end reads "3.2": measure 3, note 2.
-  // const loopEnd = (measure: number, note: number | null) =>
-  //   note === null ? `${measure + 1}` : `${measure + 1}.${note}`;
-  // const loopLabel = loop
-  //   ? ` • Loop ${loopEnd(loop.startMeasure, loopNotes.start)}–${loopEnd(loop.endMeasure, loopNotes.end)}`
-  //   : "";
-
+export function Status({ midi }: Props) {
   const message = midiMessage(midi);
   // Any change to the message or its error counts as a new status.
   const key = `${message}\n${midi.error ?? ""}`;
@@ -93,17 +62,6 @@ export function Status({
       >
         <CloseIcon size={14} />
       </Button>
-      {/* <span>
-        {playing
-          ? `• Playing${loopLabel}`
-          : finished
-            ? "Finished! 🎉"
-            : loaded
-              ? `Measure ${currentMeasure + 1} / ${measureCount}${loopLabel}`
-              : "Loading score…"}
-        {" • "}
-        {completedSteps} Played / {wrongNotes} Wrong
-      </span> */}
     </section>
   );
 }

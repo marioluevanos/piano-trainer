@@ -26,6 +26,16 @@
   cursor: pointer;
 }
 
+/* The measure under the cursor, beside the back button. */
+.toolbar-measure {
+  min-width: 0;
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .toolbar-actions {
   display: flex;
   gap: 6px;

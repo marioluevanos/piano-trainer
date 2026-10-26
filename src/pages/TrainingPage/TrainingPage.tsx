@@ -362,6 +362,7 @@ export function TrainingPage({
         loop={loop}
         cursorNote={cursorNote}
         loopNotes={loopNotes}
+        currentMeasure={currentMeasure}
         measureCount={measureCount}
         speed={speed}
         fullKeyboard={fullKeyboard}
@@ -418,18 +419,7 @@ export function TrainingPage({
           onNoteOff={onScreenNoteOff}
         />
       </section>
-      <Status
-        midi={midi}
-        playing={playback.playing}
-        finished={engine.finished}
-        loaded={steps.length > 0}
-        loop={loop}
-        loopNotes={loopNotes}
-        currentMeasure={currentMeasure}
-        measureCount={measureCount}
-        completedSteps={engine.completedSteps}
-        wrongNotes={engine.wrongNotes}
-      />
+      <Status midi={midi} />
     </div>
   );
 }

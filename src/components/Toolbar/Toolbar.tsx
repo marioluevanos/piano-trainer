@@ -19,6 +19,8 @@ interface Props {
   cursorNote: CursorNote | null;
   /** 1-based note numbers the loop starts and ends on, when it starts or ends mid-measure. */
   loopNotes: { start: number | null; end: number | null };
+  /** The measure under the cursor, zero-based. */
+  currentMeasure: number;
   measureCount: number;
   speed: number;
   fullKeyboard: boolean;
@@ -65,6 +67,7 @@ export function Toolbar({
   loop,
   cursorNote,
   loopNotes,
+  currentMeasure,
   measureCount,
   speed,
   fullKeyboard,
@@ -98,6 +101,13 @@ export function Toolbar({
   };
 
   const measureOptions = Array.from({ length: measureCount }, (_, i) => i);
+
+  // A mid-measure loop end reads "3.2": measure 3, note 2.
+  const loopEnd = (measure: number, note: number | null) =>
+    note === null ? `${measure + 1}` : `${measure + 1}.${note}`;
+  const loopLabel = loop
+    ? ` • Loop ${loopEnd(loop.startMeasure, loopNotes.start)}–${loopEnd(loop.endMeasure, loopNotes.end)}`
+    : "";
 
   // Start or end the loop on the note under the cursor. On a measure's first
   // (or last) note the loop takes the whole measure, so it shows no note label.
@@ -147,6 +157,11 @@ export function Toolbar({
       >
         <ChevronLeftIcon />
       </Button>
+      <span className="toolbar-measure" role="status">
+        {canPlay
+          ? `Measure ${currentMeasure + 1}/${measureCount}${loopLabel}`
+          : "Loading score…"}
+      </span>
 
       <div className="toolbar-actions">
         <SettingsMenu>
@@ -172,9 +187,7 @@ export function Toolbar({
                     startMeasure: start,
                     endMeasure: end,
                     endTimestamp:
-                      end === loop?.endMeasure
-                        ? loop.endTimestamp
-                        : undefined,
+                      end === loop?.endMeasure ? loop.endTimestamp : undefined,
                   });
                 }}
               >
@@ -213,8 +226,7 @@ export function Toolbar({
           {(loopNotes.start !== null || loopNotes.end !== null) && (
             <p className="loop-note">
               {[
-                loopNotes.start !== null &&
-                  `Starts on note ${loopNotes.start}`,
+                loopNotes.start !== null && `Starts on note ${loopNotes.start}`,
                 loopNotes.end !== null && `ends on note ${loopNotes.end}`,
               ]
                 .filter(Boolean)

@@ -9,7 +9,7 @@ import {
 } from "../../songs/library";
 import {
   SCAN_ACCEPT,
-  canScan,
+  // canScan,
   loadScanOptions,
   describeScanProgress,
   saveScanOptions,
