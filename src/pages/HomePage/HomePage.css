@@ -138,16 +138,37 @@
 }
 
 .song-cover {
+  position: relative;
+  overflow: hidden;
   flex: none;
   display: grid;
   place-items: center;
   width: 48px;
   height: 48px;
   border-radius: 4px 0 0 4px;
-  object-fit: cover;
   font-size: 20px;
   font-weight: 600;
   color: var(--on-cover);
+}
+
+.song-cover img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 0.2s ease-out;
+}
+
+.song-cover img.shown {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .song-cover img {
+    transition: none;
+  }
 }
 
 .cover-tone-0 {

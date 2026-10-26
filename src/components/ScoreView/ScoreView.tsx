@@ -240,7 +240,7 @@ export function ScoreView({
   }, []);
 
   // Refit the horizontal line when the score area changes height, e.g. when
-  // the phone rotates or the toolbar opens.
+  // when the phone rotates.
   useEffect(() => {
     const area = containerRef.current?.parentElement;
     if (!area) return;

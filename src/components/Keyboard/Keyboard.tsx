@@ -84,7 +84,7 @@ export interface KeyboardProps {
   keyStates: ReadonlyMap<number, KeyState>;
   /** Which hand each highlighted key belongs to; drives per-hand colouring. */
   hands?: ReadonlyMap<number, Hand>;
-  /** Labels drawn above the keys (e.g. the expected notes). */
+  /** Labels drawn above the keys (e.g. the expected notes). Without them the keyboard reserves no room for labels. */
   labels?: ReadonlyMap<number, string>;
   onNoteOn?: (midi: number) => void;
   onNoteOff?: (midi: number) => void;
@@ -109,7 +109,7 @@ export function Keyboard({
   const maxX = visible.length
     ? Math.max(...visible.map((k) => k.x + (k.black ? BLACK_W : WHITE_W)))
     : TOTAL_W;
-  const labelH = 28;
+  const labelH = labels ? 28 : 0;
   const cls = (k: KeyGeom) =>
     `key ${k.black ? "black" : "white"} ${keyStates.get(k.midi) ?? "idle"}${hands?.has(k.midi) ? ` hand-${hands.get(k.midi)}` : ""}`;
 

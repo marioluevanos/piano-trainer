@@ -2,16 +2,18 @@
   position: relative;
 }
 
+/* Placed against the screen rather than the button, which can sit far from
+   the right edge on a phone, so the panel never runs off the left edge. */
 .settings-panel {
-  position: absolute;
-  bottom: calc(100% + 4px);
-  right: 0;
+  position: fixed;
+  bottom: calc(var(--toolbar-height) + 4px);
+  right: 8px;
   display: flex;
   flex-direction: column;
   gap: 10px;
   width: max-content;
   max-width: calc(100vw - 16px);
-  max-height: calc(100vh - 60px);
+  max-height: calc(100dvh - var(--toolbar-height) - 12px);
   overflow-y: auto;
   padding: 12px;
   background: var(--panel);

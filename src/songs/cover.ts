@@ -56,6 +56,57 @@ const cache = new Map<string, { key: string; url?: string; promise: Promise<stri
 
 const coverKey = (song: Song) => `${song.id}@${song.coverVersion}`;
 
+/*
+ * Covers also persist in Cache Storage, so a reload shows them without asking
+ * Firestore (whose getDoc always waits for the server when online). An entry is
+ * keyed by the cover version, which changes with the image, so it never goes
+ * stale. Cache Storage is missing outside secure contexts (the dev server on a
+ * LAN address); covers then always come from Firestore.
+ */
+const STORE = "piano-trainer.covers.v1";
+
+const storeUrl = (song: Song) =>
+  `/covers/${encodeURIComponent(song.id)}?v=${song.coverVersion}`;
+
+function openStore(): Promise<Cache> | null {
+  try {
+    return typeof caches === "undefined" ? null : caches.open(STORE);
+  } catch {
+    return null;
+  }
+}
+
+async function readStoredCover(song: Song): Promise<Blob | null> {
+  try {
+    const response = await (await openStore())?.match(storeUrl(song));
+    return response ? await response.blob() : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Keep `blob` as the song's cover, dropping its older versions. */
+async function storeCover(song: Song, blob: Blob) {
+  try {
+    const store = await openStore();
+    if (!store) return;
+    const old = await store.keys(storeUrl(song), { ignoreSearch: true });
+    await Promise.all(old.map((request) => store.delete(request)));
+    await store.put(storeUrl(song), new Response(blob, { headers: { "Content-Type": blob.type } }));
+  } catch {
+    // Not keeping the cover only costs a refetch next time.
+  }
+}
+
+/** The cover from Cache Storage, or from Firestore (then stored) when not there yet. */
+async function fetchCover(song: Song): Promise<Blob> {
+  const stored = await readStoredCover(song);
+  if (stored) return stored;
+  const blob = await song.loadCover!();
+  void storeCover(song, blob);
+  return blob;
+}
+
 function loadCoverUrl(song: Song) {
   const key = coverKey(song);
   const cached = cache.get(song.id);
@@ -63,7 +114,7 @@ function loadCoverUrl(song: Song) {
   if (cached?.url) URL.revokeObjectURL(cached.url);
   const entry: { key: string; url?: string; promise: Promise<string> } = {
     key,
-    promise: song.loadCover!().then((blob) => (entry.url = URL.createObjectURL(blob))),
+    promise: fetchCover(song).then((blob) => (entry.url = URL.createObjectURL(blob))),
   };
   // A failed load is retried the next time the cover is shown.
   entry.promise.catch(() => cache.get(song.id) === entry && cache.delete(song.id));

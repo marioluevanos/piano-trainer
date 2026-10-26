@@ -1,6 +1,8 @@
+import { useEffect, useState } from "react";
 import type { LoopRange } from "../../engine/types";
 import type { useMidiInput } from "../../midi/useMidiInput";
 import { Button } from "../Button/Button";
+import { CloseIcon } from "../Icons/CloseIcon";
 import "./Status.css";
 
 interface Props {
@@ -19,7 +21,13 @@ interface Props {
   wrongNotes: number;
 }
 
-/** The bottom status line: MIDI connection on the left, practice progress on the right. */
+/** How long a status notification stays up before it dismisses itself. */
+const DISMISS_AFTER_MS = 7_000;
+
+/**
+ * A notification above the toolbar that pops up whenever the MIDI connection
+ * status changes and dismisses itself after a while, or when closed.
+ */
 export function Status({
   midi,
   // playing,
@@ -39,10 +47,27 @@ export function Status({
   //   ? ` • Loop ${loopEnd(loop.startMeasure, loopNotes.start)}–${loopEnd(loop.endMeasure, loopNotes.end)}`
   //   : "";
 
+  const message = midiMessage(midi);
+  // Any change to the message or its error counts as a new status.
+  const key = `${message}\n${midi.error ?? ""}`;
+  const [visible, setVisible] = useState(true);
+  const [shownKey, setShownKey] = useState(key);
+  if (key !== shownKey) {
+    setShownKey(key);
+    setVisible(true);
+  }
+
+  useEffect(() => {
+    const timer = setTimeout(() => setVisible(false), DISMISS_AFTER_MS);
+    return () => clearTimeout(timer);
+  }, [key]);
+
+  if (!visible) return null;
+
   return (
-    <section className="status">
-      <span>
-        {midiMessage(midi)}{" "}
+    <section className="status" role="status">
+      <span className="status-message">
+        {message}{" "}
         {midi.status === "unavailable" && midi.error && (
           <span className="status-error">{midi.error}</span>
         )}
@@ -57,6 +82,17 @@ export function Status({
           </Button>
         )}
       </span>
+      <Button
+        className="status-close"
+        variant="ghost"
+        size="xs"
+        icon
+        onClick={() => setVisible(false)}
+        aria-label="Dismiss"
+        title="Dismiss"
+      >
+        <CloseIcon size={14} />
+      </Button>
       {/* <span>
         {playing
           ? `• Playing${loopLabel}`

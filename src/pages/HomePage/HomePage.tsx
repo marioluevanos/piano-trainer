@@ -58,13 +58,30 @@ function tone(id: string) {
   return Math.abs(hash) % TONES;
 }
 
-/** A song's square cover, or a colored tile with its initial when it has none. */
+/**
+ * A song's square cover, or a colored tile with its initial when it has none.
+ * The tile also stands in while a cover loads; the image then fades in over
+ * it, unless it was already loaded on the first render.
+ */
 function SongCover({ song }: { song: Song }) {
   const url = useCoverUrl(song);
-  if (url) return <img className="song-cover" src={url} alt="" />;
+  const [instant] = useState(url !== null);
+  const [decoded, setDecoded] = useState(false);
   return (
     <span className={`song-cover cover-tone-${tone(song.id)}`} aria-hidden="true">
-      {song.title.trim().charAt(0).toUpperCase()}
+      {!song.loadCover && song.title.trim().charAt(0).toUpperCase()}
+      {url && (
+        <img
+          className={instant || decoded ? "shown" : undefined}
+          src={url}
+          alt=""
+          width={48}
+          height={48}
+          decoding="async"
+          draggable={false}
+          onLoad={() => setDecoded(true)}
+        />
+      )}
     </span>
   );
 }

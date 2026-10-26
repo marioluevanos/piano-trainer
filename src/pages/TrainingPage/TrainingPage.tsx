@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Button } from "../../components/Button/Button";
 import { Keyboard, noteName } from "../../components/Keyboard/Keyboard";
 import {
   ModeDialog,
@@ -38,14 +37,11 @@ import { useMidiInput } from "../../midi/useMidiInput";
 import { usePlayback } from "../../midi/usePlayback";
 import { synthNoteOff, synthNoteOn, unlockAudio } from "../../midi/synth";
 import type { Song } from "../../songs";
-import { ChevronLeftIcon } from "../../components/Icons/ChevronLeftIcon";
-import { ChevronRightIcon } from "../../components/Icons/ChevronRightIcon";
-import { PlayIcon } from "../../components/Icons/PlayIcon";
-import { StopIcon } from "../../components/Icons/StopIcon";
 import "./TrainingPage.css";
 
 const FULL_KEYBOARD_KEY = "piano-trainer.full-keyboard.v1";
 const KEYBOARD_SOUND_KEY = "piano-trainer.keyboard-sound.v1";
+const KEY_LABELS_KEY = "piano-trainer.key-labels.v1";
 
 /** Reads a remembered on/off setting, `true` unless it was turned off. */
 function loadSetting(key: string): boolean {
@@ -127,6 +123,13 @@ export function TrainingPage({
   const changeOnScreenSound = useCallback((sound: boolean) => {
     setOnScreenSound(sound);
     saveSetting(KEYBOARD_SOUND_KEY, sound);
+  }, []);
+  const [keyLabels, setKeyLabels] = useState(() =>
+    loadSetting(KEY_LABELS_KEY),
+  );
+  const changeKeyLabels = useCallback((show: boolean) => {
+    setKeyLabels(show);
+    saveSetting(KEY_LABELS_KEY, show);
   }, []);
   const [speed, setSpeed] = useState(1);
 
@@ -381,48 +384,7 @@ export function TrainingPage({
         />
       )}
 
-      {/* Note nudging and play/stop stay one tap away beside the toolbar toggle, in either mode. */}
-      {mode !== null && (
-        <div className="transport">
-          <Button
-            size="lg"
-            icon
-            round
-            onClick={() => nudge(-1)}
-            disabled={steps.length === 0}
-            aria-label="Previous note"
-            title="Previous note (←)"
-          >
-            <ChevronLeftIcon />
-          </Button>
-          <Button
-            size="lg"
-            icon
-            round
-            onClick={() => nudge(1)}
-            disabled={steps.length === 0}
-            aria-label="Next note"
-            title="Next note (→)"
-          >
-            <ChevronRightIcon />
-          </Button>
-          <Button
-            size="lg"
-            icon
-            round
-            active={playback.playing}
-            onClick={togglePlayback}
-            disabled={steps.length === 0}
-            aria-label={playback.playing ? "Stop" : "Play"}
-            title={playback.playing ? "Stop" : "Play the song"}
-          >
-            {playback.playing ? <StopIcon /> : <PlayIcon />}
-          </Button>
-        </div>
-      )}
-
       <Toolbar
-        title={song?.title}
         playing={playback.playing}
         canPlay={steps.length > 0}
         handMode={handMode}
@@ -433,8 +395,10 @@ export function TrainingPage({
         speed={speed}
         fullKeyboard={fullKeyboard}
         sound={onScreenSound}
+        keyLabels={keyLabels}
         onHome={onHome}
         onTogglePlayback={togglePlayback}
+        onNudge={nudge}
         onRestart={restart}
         onHandModeChange={setHandMode}
         onLoopChange={setLoopRange}
@@ -444,6 +408,7 @@ export function TrainingPage({
         onSpeedChange={changeSpeed}
         onFullKeyboardChange={changeFullKeyboard}
         onSoundChange={changeOnScreenSound}
+        onKeyLabelsChange={changeKeyLabels}
       />
 
       <section className="score-area">
@@ -473,7 +438,7 @@ export function TrainingPage({
         <Keyboard
           keyStates={keyStates}
           hands={hands}
-          labels={labels}
+          labels={keyLabels ? labels : undefined}
           range={range}
           onNoteOn={onScreenNoteOn}
           onNoteOff={onScreenNoteOff}

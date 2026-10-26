@@ -1,15 +1,14 @@
-import { useEffect, useRef, useState } from "react";
 import type { HandMode, LoopRange } from "../../engine/types";
 import { Button } from "../Button/Button";
 import { SettingsMenu } from "../SettingsMenu/SettingsMenu";
 import { ChevronLeftIcon } from "../Icons/ChevronLeftIcon";
-import { GearIcon } from "../Icons/GearIcon";
+import { ChevronRightIcon } from "../Icons/ChevronRightIcon";
 import { PlayIcon } from "../Icons/PlayIcon";
+import { RestartIcon } from "../Icons/RestartIcon";
 import { StopIcon } from "../Icons/StopIcon";
 import "./Toolbar.css";
 
 interface Props {
-  title?: string;
   /** Whether the song is playing back. */
   playing: boolean;
   /** False until the score is ready, which disables playback. */
@@ -24,8 +23,12 @@ interface Props {
   speed: number;
   fullKeyboard: boolean;
   sound: boolean;
+  /** Whether the expected notes' names show above the on-screen keys. */
+  keyLabels: boolean;
   onHome: () => void;
   onTogglePlayback: () => void;
+  /** Moves the cursor one playable note back (-1) or forward (1). */
+  onNudge: (delta: 1 | -1) => void;
   onRestart: () => void;
   onHandModeChange: (mode: HandMode) => void;
   onLoopChange: (loop: LoopRange | null) => void;
@@ -37,6 +40,7 @@ interface Props {
   onSpeedChange: (speed: number) => void;
   onFullKeyboardChange: (full: boolean) => void;
   onSoundChange: (sound: boolean) => void;
+  onKeyLabelsChange: (show: boolean) => void;
 }
 
 /** Where the cursor is, in the terms a loop is set in. */
@@ -50,12 +54,8 @@ export interface CursorNote {
   last: boolean;
 }
 
-/**
- * The practice toolbar: a fixed gear button that slides in a bar with the
- * playback, hand and settings controls.
- */
+/** The practice toolbar, fixed along the bottom: settings, hands, note nudging and playback. */
 export function Toolbar({
-  title,
   playing,
   canPlay,
   handMode,
@@ -66,8 +66,10 @@ export function Toolbar({
   speed,
   fullKeyboard,
   sound,
+  keyLabels,
   onHome,
   onTogglePlayback,
+  onNudge,
   onRestart,
   onHandModeChange,
   onLoopChange,
@@ -77,42 +79,8 @@ export function Toolbar({
   onSpeedChange,
   onFullKeyboardChange,
   onSoundChange,
+  onKeyLabelsChange,
 }: Props) {
-  const [open, setOpen] = useState(false);
-  const toolbarRef = useRef<HTMLElement>(null);
-  const toggleRef = useRef<HTMLButtonElement>(null);
-
-  // Hide the toolbar when the player taps or scrolls anywhere else. Scrolling is
-  // detected from wheel/touch gestures rather than `scroll` events, so the score
-  // auto-scrolling to follow the cursor does not close it.
-  useEffect(() => {
-    if (!open) return;
-    const isOutside = (e: Event) => {
-      const target = e.target as Node;
-      return (
-        !toolbarRef.current?.contains(target) &&
-        !toggleRef.current?.contains(target)
-      );
-    };
-    const close = (e: Event) => {
-      if (isOutside(e)) setOpen(false);
-    };
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    const opts = { capture: true, passive: true };
-    document.addEventListener("pointerdown", close, opts);
-    document.addEventListener("wheel", close, opts);
-    document.addEventListener("touchmove", close, opts);
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("pointerdown", close, opts);
-      document.removeEventListener("wheel", close, opts);
-      document.removeEventListener("touchmove", close, opts);
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [open]);
-
   // Left and right are independent toggles; at least one hand always stays selected.
   const leftOn = handMode !== "right";
   const rightOn = handMode !== "left";
@@ -165,222 +133,227 @@ export function Toolbar({
   };
 
   return (
-    <>
+    <header className="toolbar">
       <Button
-        ref={toggleRef}
-        className="toolbar-toggle"
-        size="lg"
         icon
-        round
-        variant="primary"
-        active={open}
-        onClick={() => setOpen((o) => !o)}
-        aria-label={open ? "Hide toolbar" : "Show toolbar"}
-        aria-expanded={open}
-        title={open ? "Hide toolbar" : "Show toolbar"}
+        onClick={onHome}
+        aria-label="Songs"
+        title="Back to the song list"
       >
-        <GearIcon />
+        <ChevronLeftIcon />
       </Button>
 
-      {/* Slides in from the bottom while open; inert while hidden so it cannot be tabbed into. */}
-      <header
-        ref={toolbarRef}
-        className={`toolbar${open ? " open" : ""}`}
-        inert={!open}
-      >
+      <div className="toolbar-actions">
+        <SettingsMenu>
+          {loop && (
+            <div className="settings-row">
+              <Button onClick={() => onLoopChange(null)}>Clear</Button>
+            </div>
+          )}
+
+          <div className="settings-row">
+            <label>
+              Loop
+              <select
+                value={loop ? loop.startMeasure : ""}
+                onChange={(e) => {
+                  // "off" has an empty value, which Number() would turn into measure 1.
+                  if (e.target.value === "") return onLoopChange(null);
+                  // A measure picked here starts on its first note; the
+                  // end keeps its note unless it has to move.
+                  const start = Number(e.target.value);
+                  const end = Math.max(start, loop?.endMeasure ?? start);
+                  onLoopChange({
+                    startMeasure: start,
+                    endMeasure: end,
+                    endTimestamp:
+                      end === loop?.endMeasure
+                        ? loop.endTimestamp
+                        : undefined,
+                  });
+                }}
+              >
+                <option value="">off</option>
+                {measureOptions.map((i) => (
+                  <option key={i} value={i}>
+                    m. {i + 1}
+                  </option>
+                ))}
+              </select>
+              →
+              <select
+                value={loop ? loop.endMeasure : ""}
+                disabled={!loop}
+                onChange={(e) =>
+                  loop &&
+                  onLoopChange({
+                    ...loop,
+                    endMeasure: Math.max(
+                      loop.startMeasure,
+                      Number(e.target.value),
+                    ),
+                    endTimestamp: undefined,
+                  })
+                }
+              >
+                <option value="">—</option>
+                {measureOptions.map((i) => (
+                  <option key={i} value={i}>
+                    m. {i + 1}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          {(loopNotes.start !== null || loopNotes.end !== null) && (
+            <p className="loop-note">
+              {[
+                loopNotes.start !== null &&
+                  `Starts on note ${loopNotes.start}`,
+                loopNotes.end !== null && `ends on note ${loopNotes.end}`,
+              ]
+                .filter(Boolean)
+                .join(" · ")
+                .replace(/^e/, "E")}
+            </p>
+          )}
+          <div className="settings-row">
+            <Button
+              onClick={() => setLoopFromHere("start")}
+              disabled={!cursorNote}
+              title="Start the loop on the note under the cursor"
+            >
+              Start here
+            </Button>
+            <Button
+              onClick={() => setLoopFromHere("end")}
+              disabled={!cursorNote}
+              title="End the loop on the note under the cursor"
+            >
+              End here
+            </Button>
+          </div>
+          <div className="settings-row">
+            <label title="Play the loop through its repeat signs and endings, as the music is performed">
+              <input
+                type="checkbox"
+                checked={followRepeats}
+                disabled={!loop}
+                onChange={(e) => onFollowRepeatsChange(e.target.checked)}
+              />
+              Follow repeats
+            </label>
+          </div>
+          {loopEndings && (
+            <p className="settings-hint" role="note">
+              Measures {loopEndings.first + 1}–{loopEndings.last + 1} are
+              alternate endings, so this loop plays them back to back. Turn on
+              Follow repeats to hear them as written.
+            </p>
+          )}
+
+          <div className="settings-row">
+            <label>
+              Speed
+              <select
+                value={speed}
+                onChange={(e) => onSpeedChange(Number(e.target.value))}
+              >
+                {[0.5, 0.75, 1, 1.25].map((v) => (
+                  <option key={v} value={v}>
+                    {v * 100}%
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <div className="settings-row">
+            <label>
+              <input
+                type="checkbox"
+                checked={fullKeyboard}
+                onChange={(e) => onFullKeyboardChange(e.target.checked)}
+              />
+              88 keys
+            </label>
+            <label title="Play a sound when you tap the on-screen keyboard">
+              <input
+                type="checkbox"
+                checked={sound}
+                onChange={(e) => onSoundChange(e.target.checked)}
+              />
+              Keyboard Sound
+            </label>
+            <label title="Show the names of the notes to play above the on-screen keys">
+              <input
+                type="checkbox"
+                checked={keyLabels}
+                onChange={(e) => onKeyLabelsChange(e.target.checked)}
+              />
+              Note names
+            </label>
+          </div>
+        </SettingsMenu>
+        <Button
+          className="hand-button hand-L"
+          icon
+          active={leftOn}
+          onClick={() => toggleHand("left")}
+          aria-pressed={leftOn}
+          aria-label="Left hand"
+          title="Left hand"
+        >
+          L
+        </Button>
+        <Button
+          className="hand-button"
+          icon
+          active={rightOn}
+          onClick={() => toggleHand("right")}
+          aria-pressed={rightOn}
+          aria-label="Right hand"
+          title="Right hand"
+        >
+          R
+        </Button>
         <Button
           icon
-          onClick={onHome}
-          aria-label="Songs"
-          title="Back to the song list"
+          onClick={onRestart}
+          aria-label="Restart"
+          title="Restart from the beginning (of the loop, when one is set)"
+        >
+          <RestartIcon />
+        </Button>
+        <Button
+          icon
+          onClick={() => onNudge(-1)}
+          disabled={!canPlay}
+          aria-label="Previous note"
+          title="Previous note (←)"
         >
           <ChevronLeftIcon />
         </Button>
-        <span className="toolbar-title">{title}</span>
-
-        <div className="toolbar-actions">
-          <SettingsMenu>
-            <div className="settings-row">
-              <Button onClick={onRestart}>Restart</Button>
-              {loop && (
-                <Button onClick={() => onLoopChange(null)}>Clear</Button>
-              )}
-            </div>
-
-            <div className="settings-row">
-              <label>
-                Loop
-                <select
-                  value={loop ? loop.startMeasure : ""}
-                  onChange={(e) => {
-                    // "off" has an empty value, which Number() would turn into measure 1.
-                    if (e.target.value === "") return onLoopChange(null);
-                    // A measure picked here starts on its first note; the
-                    // end keeps its note unless it has to move.
-                    const start = Number(e.target.value);
-                    const end = Math.max(start, loop?.endMeasure ?? start);
-                    onLoopChange({
-                      startMeasure: start,
-                      endMeasure: end,
-                      endTimestamp:
-                        end === loop?.endMeasure
-                          ? loop.endTimestamp
-                          : undefined,
-                    });
-                  }}
-                >
-                  <option value="">off</option>
-                  {measureOptions.map((i) => (
-                    <option key={i} value={i}>
-                      m. {i + 1}
-                    </option>
-                  ))}
-                </select>
-                →
-                <select
-                  value={loop ? loop.endMeasure : ""}
-                  disabled={!loop}
-                  onChange={(e) =>
-                    loop &&
-                    onLoopChange({
-                      ...loop,
-                      endMeasure: Math.max(
-                        loop.startMeasure,
-                        Number(e.target.value),
-                      ),
-                      endTimestamp: undefined,
-                    })
-                  }
-                >
-                  <option value="">—</option>
-                  {measureOptions.map((i) => (
-                    <option key={i} value={i}>
-                      m. {i + 1}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-            {(loopNotes.start !== null || loopNotes.end !== null) && (
-              <p className="loop-note">
-                {[
-                  loopNotes.start !== null &&
-                    `Starts on note ${loopNotes.start}`,
-                  loopNotes.end !== null && `ends on note ${loopNotes.end}`,
-                ]
-                  .filter(Boolean)
-                  .join(" · ")
-                  .replace(/^e/, "E")}
-              </p>
-            )}
-            <div className="settings-row">
-              <Button
-                onClick={() => setLoopFromHere("start")}
-                disabled={!cursorNote}
-                title="Start the loop on the note under the cursor"
-              >
-                Start here
-              </Button>
-              <Button
-                onClick={() => setLoopFromHere("end")}
-                disabled={!cursorNote}
-                title="End the loop on the note under the cursor"
-              >
-                End here
-              </Button>
-            </div>
-            <div className="settings-row">
-              <label title="Play the loop through its repeat signs and endings, as the music is performed">
-                <input
-                  type="checkbox"
-                  checked={followRepeats}
-                  disabled={!loop}
-                  onChange={(e) => onFollowRepeatsChange(e.target.checked)}
-                />
-                Follow repeats
-              </label>
-            </div>
-            {loopEndings && (
-              <p className="settings-hint" role="note">
-                Measures {loopEndings.first + 1}–{loopEndings.last + 1} are
-                alternate endings, so this loop plays them back to back. Turn on
-                Follow repeats to hear them as written.
-              </p>
-            )}
-
-            <div className="settings-row">
-              <label>
-                Speed
-                <select
-                  value={speed}
-                  onChange={(e) => onSpeedChange(Number(e.target.value))}
-                >
-                  {[0.5, 0.75, 1, 1.25].map((v) => (
-                    <option key={v} value={v}>
-                      {v * 100}%
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-
-            <div className="settings-row">
-              <label>
-                <input
-                  type="checkbox"
-                  checked={fullKeyboard}
-                  onChange={(e) => onFullKeyboardChange(e.target.checked)}
-                />
-                88 keys
-              </label>
-              <label title="Play a sound when you tap the on-screen keyboard">
-                <input
-                  type="checkbox"
-                  checked={sound}
-                  onChange={(e) => onSoundChange(e.target.checked)}
-                />
-                Keyboard Sound
-              </label>
-            </div>
-          </SettingsMenu>
-          <Button
-            className="hand-button hand-L"
-            icon
-            active={leftOn}
-            onClick={() => toggleHand("left")}
-            aria-pressed={leftOn}
-            aria-label="Left hand"
-            title="Left hand"
-          >
-            L
-          </Button>
-          <Button
-            className="hand-button"
-            icon
-            active={rightOn}
-            onClick={() => toggleHand("right")}
-            aria-pressed={rightOn}
-            aria-label="Right hand"
-            title="Right hand"
-          >
-            R
-          </Button>
-          <Button
-            icon
-            active={playing}
-            onClick={() => {
-              // Starting playback hides the toolbar so the score is in view.
-              if (!playing) setOpen(false);
-              onTogglePlayback();
-            }}
-            disabled={!canPlay}
-            aria-label={playing ? "Stop" : "Play"}
-            title="Play the song from the cursor (the selected hands only)"
-          >
-            {playing ? <StopIcon /> : <PlayIcon />}
-          </Button>
-        </div>
-      </header>
-    </>
+        <Button
+          icon
+          onClick={() => onNudge(1)}
+          disabled={!canPlay}
+          aria-label="Next note"
+          title="Next note (→)"
+        >
+          <ChevronRightIcon />
+        </Button>
+        <Button
+          icon
+          active={playing}
+          onClick={onTogglePlayback}
+          disabled={!canPlay}
+          aria-label={playing ? "Stop" : "Play"}
+          title="Play the song from the cursor (the selected hands only)"
+        >
+          {playing ? <StopIcon /> : <PlayIcon />}
+        </Button>
+      </div>
+    </header>
   );
 }

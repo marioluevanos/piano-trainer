@@ -1,6 +1,6 @@
 :root {
   --bg: #0f1115;
-  --panel: #171a21;
+  --panel: #1c1f27;
   --text: #e8eaf0;
   --muted: #8b90a0;
   --accent: #2dd4bf;
@@ -39,6 +39,8 @@
   --cover-3: #be185d;
   --cover-4: #c2410c;
   --cover-5: #4d7c0f;
+  /* The training page's fixed bottom toolbar. */
+  --toolbar-height: 40px;
   font-family:
     system-ui,
     -apple-system,
@@ -49,9 +51,9 @@
 }
 
 /* Dark mode applies to the sheet music only; the UI and keyboard stay as is. */
-/* @media (prefers-color-scheme: dark) {
+@media (prefers-color-scheme: dark) {
   :root {
-    --score-bg: #242424;
+    --score-bg: #000;
     --score-text: #e4e4e7;
     --score-ledger-line: #888;
     --score-surface: #1c1f27;
@@ -65,7 +67,8 @@
   .score-area {
     color-scheme: dark;
   }
-} */
+}
+
 * {
   box-sizing: border-box;
 }
