@@ -1,9 +1,9 @@
 /**
- * Publish the songs in src/songs/ to the shared library in Firestore.
+ * Publish the songs in library/ to the shared library in Firestore.
  *
  *   npm run upload-songs [-- --dry-run] [--prune]
  *
- * Uploads every src/songs/*.musicxml whose content changed since the last
+ * Uploads every library/*.musicxml whose content changed since the last
  * upload (compared by hash). An image next to a score with the same name
  * (fur-elise.webp / .jpg / .jpeg / .png) becomes its cover. Covers are not
  * resized here, so make them square and small (under MAX_COVER_BYTES). --prune also deletes library songs that no longer
@@ -22,7 +22,7 @@ import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { songTitle } from "../src/songs/metadata.ts";
 import { LIBRARY_DOC, MAX_COVER_BYTES, MAX_SCORE_BYTES } from "../src/songs/paths.ts";
 
-const SONGS_DIR = fileURLToPath(new URL("../src/songs/", import.meta.url));
+const SONGS_DIR = fileURLToPath(new URL("../library/", import.meta.url));
 
 const COVER_TYPES: Record<string, string> = {
   ".webp": "image/webp",
@@ -119,7 +119,7 @@ async function main() {
   for (const id of uploaded.keys()) {
     if (local.has(id)) continue;
     if (!prune) {
-      console.log(`? ${id}: in the library but not in src/songs/ (use --prune to delete it)`);
+      console.log(`? ${id}: in Firestore but not in library/ (use --prune to delete it)`);
       continue;
     }
     if (!dryRun) {

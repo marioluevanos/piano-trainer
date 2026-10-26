@@ -12,7 +12,10 @@
     "upload-songs": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/upload-songs.ts",
     "deploy": "firebase deploy --only hosting",
     "deploy:rules": "firebase deploy --only firestore:rules",
-    "icons": "pwa-assets-generator"
+    "icons": "pwa-assets-generator",
+    "omr:build": "docker build --platform linux/amd64 -t piano-omr omr",
+    "omr:dev": "docker run --rm --platform linux/amd64 -p 8080:8080 -e OMR_DEV_NO_AUTH=1 piano-omr",
+    "deploy:omr": "gcloud run deploy piano-omr --source omr --project mario-luevanos --region us-west1 --memory 4Gi --cpu 2 --concurrency 1 --max-instances 1 --timeout 900 --allow-unauthenticated --set-env-vars OMR_ALLOWED_EMAILS=marioluevanos@gmail.com"
   },
   "dependencies": {
     "firebase": "^13.0.0",

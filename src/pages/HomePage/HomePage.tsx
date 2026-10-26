@@ -1,13 +1,36 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { User } from "firebase/auth";
 import type { Song } from "../../songs";
 import { useCoverUrl } from "../../songs/cover";
-import { readSongFile, type ImportedSong, type SongDetails } from "../../songs/library";
+import {
+  readSongFile,
+  type ImportedSong,
+  type SongDetails,
+} from "../../songs/library";
+import {
+  SCAN_ACCEPT,
+  canScan,
+  loadScanOptions,
+  describeScanProgress,
+  saveScanOptions,
+  scanSheetMusic,
+  type ScanOptions,
+  type ScanProgress,
+} from "../../songs/omr";
+import { downloadImported, downloadSong } from "../../songs/download";
+import {
+  clearPendingScan,
+  loadPendingScan,
+  savePendingScan,
+  type PendingScan,
+} from "../../songs/pendingScan";
 import { Button } from "../../components/Button/Button";
+import { ScanDialog } from "../../components/ScanDialog/ScanDialog";
 import { SongDialog } from "../../components/SongDialog/SongDialog";
 import { SongMenu } from "../../components/SongMenu/SongMenu";
 import { GridIcon } from "../../components/Icons/GridIcon";
 import { ListIcon } from "../../components/Icons/ListIcon";
+import { DownloadIcon } from "../../components/Icons/DownloadIcon";
 import { PencilIcon } from "../../components/Icons/PencilIcon";
 import { TrashIcon } from "../../components/Icons/TrashIcon";
 import "./HomePage.css";
@@ -68,7 +91,10 @@ function SongCover({ song }: { song: Song }) {
   const [instant] = useState(url !== null);
   const [decoded, setDecoded] = useState(false);
   return (
-    <span className={`song-cover cover-tone-${tone(song.id)}`} aria-hidden="true">
+    <span
+      className={`song-cover cover-tone-${tone(song.id)}`}
+      aria-hidden="true"
+    >
       {!song.loadCover && song.title.trim().charAt(0).toUpperCase()}
       {url && (
         <img
@@ -87,7 +113,13 @@ function SongCover({ song }: { song: Song }) {
 }
 
 /** Stand-ins for a song list while it loads, in the chosen layout. */
-function SongListSkeleton({ layout, count }: { layout: Layout; count: number }) {
+function SongListSkeleton({
+  layout,
+  count,
+}: {
+  layout: Layout;
+  count: number;
+}) {
   return (
     <ul className={`song-list ${layout} skeleton`} aria-hidden="true">
       {Array.from({ length: count }, (_, i) => (
@@ -142,7 +174,11 @@ export function HomePage({
   onSignOut,
 }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [adding, setAdding] = useState<{ song: ImportedSong; fileName: string } | null>(null);
+  const scanInputRef = useRef<HTMLInputElement>(null);
+  const [adding, setAdding] = useState<{
+    song: ImportedSong;
+    fileName: string;
+  } | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const editing = songs.find((s) => s.id === editingId);
   const [pickError, setPickError] = useState<string | null>(null);
@@ -164,6 +200,73 @@ export function HomePage({
     }
   };
 
+  /** The file being scanned into MusicXML, with a way to stop waiting for it. */
+  const [scanning, setScanning] = useState<{
+    name: string;
+    abort: AbortController;
+    progress: ScanProgress;
+  } | null>(null);
+  useEffect(() => () => scanning?.abort.abort(), [scanning]);
+  /** The last scan, kept (also across reloads) until it is saved or discarded. */
+  const [pending, setPending] = useState<PendingScan | null>(loadPendingScan);
+
+  const discardPending = () => {
+    clearPendingScan();
+    setPending(null);
+  };
+
+  /** Saves a song; a saved scan is no longer pending. */
+  const add = async (song: ImportedSong, details: SongDetails) => {
+    await onAdd(song, details);
+    if (pending?.song.id === song.id) discardPending();
+  };
+
+  /** A picked PDF or image waiting in the scan options dialog. */
+  const [scanFile, setScanFile] = useState<File | null>(null);
+
+  const onPickScan = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (file) setScanFile(file);
+  };
+
+  const startScan = async (file: File, options: ScanOptions) => {
+    setScanFile(null);
+    if (!user) return;
+    saveScanOptions(options);
+    const abort = new AbortController();
+    setScanning({ name: file.name, abort, progress: { value: 0 } });
+    setPickError(null);
+    try {
+      const mxl = await scanSheetMusic(
+        file,
+        user,
+        options,
+        abort.signal,
+        (progress) =>
+          setScanning((s) => (s && s.abort === abort ? { ...s, progress } : s)),
+      );
+      const scan = { song: await readSongFile(mxl), fileName: file.name };
+      savePendingScan(scan);
+      setPending(scan);
+      setAdding(scan);
+    } catch (err) {
+      if (!abort.signal.aborted)
+        setPickError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setScanning(null);
+    }
+  };
+
+  /** Saves a score to the device, e.g. to correct a scan in MuseScore or Audiveris. */
+  const download = async (job: Promise<void>) => {
+    try {
+      await job;
+    } catch (err) {
+      setPickError(err instanceof Error ? err.message : String(err));
+    }
+  };
+
   const remove = (song: Song) => {
     if (confirm(`Remove "${song.title}" from your songs?`)) onRemove(song.id);
   };
@@ -175,7 +278,11 @@ export function HomePage({
     <ul className={`song-list ${layout}`}>
       {items.map((s) => (
         <li key={s.id} className={s.id === lastSongId ? "last" : undefined}>
-          <Button variant="ghost" className="song-open" onClick={() => onOpen(s.id)}>
+          <Button
+            variant="ghost"
+            className="song-open"
+            onClick={() => onOpen(s.id)}
+          >
             <SongCover song={s} />
             <span className="song-text">
               <span className="song-title">{s.title}</span>
@@ -188,6 +295,7 @@ export function HomePage({
             <SongMenu
               title={s.title}
               onEdit={() => setEditingId(s.id)}
+              onDownload={() => download(downloadSong(s))}
               onRemove={() => remove(s)}
             />
           )}
@@ -201,6 +309,18 @@ export function HomePage({
               title="Edit the title or cover"
             >
               <PencilIcon size={18} />
+            </Button>
+          )}
+          {s.user && layout === "list" && (
+            <Button
+              variant="ghost"
+              icon
+              className="song-action"
+              onClick={() => download(downloadSong(s))}
+              aria-label={`Download ${s.title}`}
+              title="Save the score as a MusicXML file"
+            >
+              <DownloadIcon size={18} />
             </Button>
           )}
           {s.user && layout === "list" && (
@@ -220,6 +340,7 @@ export function HomePage({
     </ul>
   );
 
+  console.log({ user });
   return (
     <div className="home">
       <header className="home-header">
@@ -254,13 +375,23 @@ export function HomePage({
       </header>
 
       <main className="home-body">
-        {(pickError ?? error) && <p className="home-error">{pickError ?? error}</p>}
-        {loading && <p className="visually-hidden" role="status">Loading songs…</p>}
+        {(pickError ?? error) && (
+          <p className="home-error">{pickError ?? error}</p>
+        )}
+        {loading && (
+          <p className="visually-hidden" role="status">
+            Loading songs…
+          </p>
+        )}
         <section>
           <div className="home-section-head">
             <h2>Your songs</h2>
             <div className="home-section-tools">
-              <div className="layout-toggle" role="group" aria-label="Song layout">
+              <div
+                className="layout-toggle"
+                role="group"
+                aria-label="Song layout"
+              >
                 <Button
                   variant="ghost"
                   size="sm"
@@ -286,17 +417,83 @@ export function HomePage({
                   <GridIcon size={18} />
                 </Button>
               </div>
+              {/* {canScan(user) && (
+                <Button
+                  onClick={() => scanInputRef.current?.click()}
+                  disabled={scanning !== null}
+                  title="Turn a PDF or photo of printed sheet music into a song"
+                >
+                  Scan M
+                </Button>
+              )} */}
               {user && (
                 <Button
                   variant="primary"
                   onClick={() => fileInputRef.current?.click()}
                   title="Load a .musicxml, .xml or .mxl file"
                 >
-                  Upload song
+                  Upload
                 </Button>
               )}
             </div>
           </div>
+          {pending && !scanning && !adding && (
+            <p className="home-notice" role="status">
+              <span>
+                Scanned <strong>{pending.fileName}</strong> is ready to add.
+              </span>
+              <Button
+                size="sm"
+                variant="primary"
+                onClick={() => setAdding(pending)}
+              >
+                Add song
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => download(downloadImported(pending.song))}
+                title="Save the scanned score to fix it in MuseScore or Audiveris"
+              >
+                Download
+              </Button>
+              <Button
+                size="sm"
+                onClick={discardPending}
+                title="Throw the scan away"
+              >
+                Discard
+              </Button>
+            </p>
+          )}
+          {scanning && (
+            <div className="home-status" role="status">
+              <span className="home-status-text">
+                Scanning <strong>{scanning.name}</strong>
+                <small>{describeScanProgress(scanning.progress)}…</small>
+              </span>
+              <span className="home-status-percent">
+                {Math.round(scanning.progress.value * 100)}%
+              </span>
+              <Button size="sm" onClick={() => scanning.abort.abort()}>
+                Cancel
+              </Button>
+              <span
+                className="home-progress"
+                role="progressbar"
+                aria-label="Scan progress"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={Math.round(scanning.progress.value * 100)}
+              >
+                <span
+                  className="home-progress-fill"
+                  style={{
+                    width: `${Math.round(scanning.progress.value * 100)}%`,
+                  }}
+                />
+              </span>
+            </div>
+          )}
           {loading ? (
             <SongListSkeleton layout={layout} count={2} />
           ) : own.length ? (
@@ -331,6 +528,21 @@ export function HomePage({
         hidden
         onChange={onPickFile}
       />
+      <input
+        ref={scanInputRef}
+        type="file"
+        accept={SCAN_ACCEPT}
+        hidden
+        onChange={onPickScan}
+      />
+      {scanFile && (
+        <ScanDialog
+          fileName={scanFile.name}
+          initialOptions={loadScanOptions()}
+          onScan={(options) => startScan(scanFile, options)}
+          onClose={() => setScanFile(null)}
+        />
+      )}
       {adding && (
         <SongDialog
           heading="Add song"
@@ -338,12 +550,16 @@ export function HomePage({
           initialTitle={adding.song.title}
           initialCoverUrl={null}
           fileName={adding.fileName}
-          onSubmit={(details) => onAdd(adding.song, details)}
+          onSubmit={(details) => add(adding.song, details)}
           onClose={() => setAdding(null)}
         />
       )}
       {editing && (
-        <EditSongDialog song={editing} onEdit={onEdit} onClose={() => setEditingId(null)} />
+        <EditSongDialog
+          song={editing}
+          onEdit={onEdit}
+          onClose={() => setEditingId(null)}
+        />
       )}
     </div>
   );

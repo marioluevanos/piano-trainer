@@ -316,7 +316,12 @@
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, transparent, var(--control-border), transparent);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--control-border),
+    transparent
+  );
   transform: translateX(-100%);
   animation: bone-shine 1.4s ease-in-out infinite;
 }
@@ -331,5 +336,92 @@
   .bone::after {
     animation: none;
     opacity: 0;
+  }
+}
+
+/* ---------- Scanning sheet music: the finished scan waiting to be added ---------- */
+.home-notice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin: 12px 0;
+  padding: 10px 12px;
+  color: var(--muted);
+  font-size: 14px;
+  border: 1px solid var(--control-border);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.home-notice span {
+  flex: 1;
+  min-width: 12ch;
+}
+
+.home-notice strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* ---------- Scanning sheet music: live progress while the scanner works ---------- */
+.home-status {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 8px 12px;
+  align-items: center;
+  margin: 12px 0;
+  padding: 10px 12px;
+  color: var(--muted);
+  font-size: 14px;
+  border: 1px solid var(--control-border);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.home-status-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.home-status-text strong {
+  color: var(--text);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-status-text small {
+  font-size: 12px;
+}
+
+.home-status-percent {
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.home-progress {
+  grid-column: 1 / -1;
+  display: block;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--control-bg);
+}
+
+.home-progress-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 0.6s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-progress-fill {
+    transition: none;
   }
 }

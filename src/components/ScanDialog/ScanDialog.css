@@ -1,0 +1,76 @@
+/* ---------- Scan options dialog (shares the song dialog's shell, file line, hint and actions) ---------- */
+.scan-dialog .song-dialog-file {
+  margin: -8px 0 16px;
+}
+
+.scan-fieldset {
+  margin: 0 0 16px;
+  padding: 0;
+  border: 0;
+}
+
+.scan-fieldset legend,
+.scan-field {
+  display: block;
+  padding: 0;
+  margin-bottom: 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.scan-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 0 16px;
+}
+
+.scan-field select {
+  font: inherit;
+  font-size: 15px;
+  min-height: 36px;
+  padding: 0 10px;
+  color: var(--text);
+  background: var(--control-bg);
+  border: 1px solid var(--control-border);
+  border-radius: 6px;
+}
+
+.scan-field select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.scan-choice {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 6px 0;
+  font-size: 15px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.scan-choice input {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin: 2px 0 0;
+  accent-color: var(--accent);
+}
+
+.scan-choice span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.scan-choice small,
+.scan-field small {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.scan-fieldset .song-dialog-hint {
+  margin-top: 4px;
+}

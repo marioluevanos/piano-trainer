@@ -1,0 +1,13 @@
+{
+  "name": "piano-trainer-omr",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Sheet music scanner (Audiveris) behind Piano Trainer's Scan sheet music button.",
+  "scripts": {
+    "start": "node --experimental-strip-types --no-warnings=ExperimentalWarning server.ts"
+  },
+  "dependencies": {
+    "firebase-admin": "^14.5.0"
+  }
+}

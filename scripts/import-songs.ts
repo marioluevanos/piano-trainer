@@ -5,8 +5,8 @@
  *
  * Reads every .mxl, .musicxml and .xml file it is given (folders are scanned,
  * not recursively), unpacks compressed .mxl archives, checks that each score
- * suits the app, and writes it as src/songs/<title>.musicxml, where
- * src/songs/index.ts picks it up automatically.
+ * suits the app, and writes it as library/<title>.musicxml, ready for
+ * `npm run upload-songs` to publish.
  */
 import { createHash } from "node:crypto";
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
@@ -15,7 +15,7 @@ import { fileURLToPath } from "node:url";
 import { inflateRawSync } from "node:zlib";
 import { isMusicXml, songTitle } from "../src/songs/metadata.ts";
 
-const SONGS_DIR = fileURLToPath(new URL("../src/songs/", import.meta.url));
+const SONGS_DIR = fileURLToPath(new URL("../library/", import.meta.url));
 const SCORE_EXTENSIONS = new Set([".mxl", ".musicxml", ".xml"]);
 /** Formats people often have that need converting first, with a hint. */
 const CONVERT_HINTS: Record<string, string> = {
@@ -117,7 +117,7 @@ function slug(text: string): string {
 
 const sha = (text: string) => createHash("sha256").update(text).digest("hex");
 
-/** Hash → file name of every song already in src/songs/, to spot re-imports. */
+/** Hash → file name of every song already in library/, to spot re-imports. */
 function existingSongs(): Map<string, string> {
   const byHash = new Map<string, string>();
   for (const f of readdirSync(SONGS_DIR)) {

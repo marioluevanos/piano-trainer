@@ -6,11 +6,12 @@ import "./SongMenu.css";
 interface Props {
   title: string;
   onEdit: () => void;
+  onDownload: () => void;
   onRemove: () => void;
 }
 
-/** A "more" button over a song card that opens a small menu to edit or remove the song. */
-export function SongMenu({ title, onEdit, onRemove }: Props) {
+/** A "more" button over a song card that opens a small menu to edit, download or remove the song. */
+export function SongMenu({ title, onEdit, onDownload, onRemove }: Props) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -61,6 +62,9 @@ export function SongMenu({ title, onEdit, onRemove }: Props) {
         <div className="song-menu-panel" role="menu" aria-label={title}>
           <Button variant="ghost" role="menuitem" onClick={choose(onEdit)}>
             Edit
+          </Button>
+          <Button variant="ghost" role="menuitem" onClick={choose(onDownload)}>
+            Download
           </Button>
           <Button
             variant="danger"
