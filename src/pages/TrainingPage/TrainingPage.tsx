@@ -40,6 +40,7 @@ import { useMidiInput } from "../../midi/useMidiInput";
 import { usePlayback } from "../../midi/usePlayback";
 import { synthNoteOff, synthNoteOn } from "../../midi/synth";
 import type { Song } from "../../songs";
+import { useLandscapeLock } from "./useLandscapeLock";
 import { useSetting, useStoredSetting } from "./useSetting";
 import "./TrainingPage.css";
 
@@ -72,15 +73,8 @@ export function TrainingPage({
   // Keyed on the id: the song objects are rebuilt whenever the list updates.
   const source = useMemo(() => song?.load(), [song?.id]);
 
-  // Training locks to landscape. Locking only works where the browser allows
-  // it (an installed PWA or fullscreen).
-  useEffect(() => {
-    const orientation = screen.orientation as ScreenOrientation & {
-      lock?: (o: "landscape") => Promise<void>;
-    };
-    orientation.lock?.("landscape").catch(() => {});
-    return () => orientation.unlock?.();
-  }, []);
+  // Training is laid out for landscape.
+  useLandscapeLock();
 
   const [steps, setSteps] = useState<Step[]>([]);
   const [measureCount, setMeasureCount] = useState(0);

@@ -9,22 +9,35 @@ export default defineConfig({
     // shell and the piano samples so practice works offline.
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["favicon.ico", "apple-touch-icon-180x180.png", "icon.svg"],
+      includeAssets: [
+        "favicon.ico",
+        "apple-touch-icon-180x180.png",
+        "icon.svg",
+      ],
       manifest: {
         name: "Piano Trainer",
         short_name: "Piano",
         description: "Piano practice with sheet music, wait mode and loops.",
         theme_color: "#0f1115",
-        background_color: "#0f1115",
-        display: "standalone",
-        orientation: "any",
+        background_color: "#1c1f27",
+        display: "fullscreen",
+        // No orientation here: it would hold every page. The training page
+        // locks itself to landscape (useLandscapeLock).
+        // A fixed id keeps installed copies tied to this manifest, so they pick up
+        // changes (like the display mode) instead of becoming a different app.
+        id: "/",
         start_url: "./",
         scope: "./",
         icons: [
           { src: "pwa-64x64.png", sizes: "64x64", type: "image/png" },
           { src: "pwa-192x192.png", sizes: "192x192", type: "image/png" },
           { src: "pwa-512x512.png", sizes: "512x512", type: "image/png" },
-          { src: "maskable-icon-512x512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+          {
+            src: "maskable-icon-512x512.png",
+            sizes: "512x512",
+            type: "image/png",
+            purpose: "maskable",
+          },
         ],
       },
       workbox: {

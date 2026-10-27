@@ -228,12 +228,10 @@
   border-radius: 3px;
 }
 
-.song-action {
+/* The "more" menu at the end of a row. */
+.song-list .song-menu {
   flex: none;
   align-self: center;
-}
-
-.song-action:last-child {
   margin-right: 8px;
 }
 
@@ -252,6 +250,14 @@
 
 .song-list.grid li {
   position: relative;
+}
+
+/* Inset over the cover's top-right corner (card border + padding + a gap). */
+.song-list.grid .song-menu {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  margin: 0;
 }
 
 .song-list.grid .song-open {

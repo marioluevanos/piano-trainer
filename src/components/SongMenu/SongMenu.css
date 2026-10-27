@@ -1,8 +1,6 @@
-/* Inset over the cover's top-right corner (card border + padding + a gap). */
+/* Where the menu sits (over a cover, or at the end of a row) is up to its parent. */
 .song-menu {
-  position: absolute;
-  top: 8px;
-  right: 8px;
+  position: relative;
   z-index: 1;
 }
 

@@ -5,13 +5,15 @@ import "./SongMenu.css";
 
 interface Props {
   title: string;
+  /** "overlay" sits over a cover image; "ghost" sits on a plain row. */
+  variant: "overlay" | "ghost";
   onEdit: () => void;
   onDownload: () => void;
   onRemove: () => void;
 }
 
-/** A "more" button over a song card that opens a small menu to edit, download or remove the song. */
-export function SongMenu({ title, onEdit, onDownload, onRemove }: Props) {
+/** A "more" button on a song card or row that opens a small menu to edit, download or remove the song. */
+export function SongMenu({ title, variant, onEdit, onDownload, onRemove }: Props) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -45,7 +47,7 @@ export function SongMenu({ title, onEdit, onDownload, onRemove }: Props) {
     <div className={`song-menu${open ? " open" : ""}`} ref={rootRef}>
       <Button
         ref={buttonRef}
-        variant="overlay"
+        variant={variant}
         size="sm"
         icon
         round

@@ -30,9 +30,6 @@ import { SongDialog } from "../../components/SongDialog/SongDialog";
 import { SongMenu } from "../../components/SongMenu/SongMenu";
 import { GridIcon } from "../../components/Icons/GridIcon";
 import { ListIcon } from "../../components/Icons/ListIcon";
-import { DownloadIcon } from "../../components/Icons/DownloadIcon";
-import { PencilIcon } from "../../components/Icons/PencilIcon";
-import { TrashIcon } from "../../components/Icons/TrashIcon";
 import "./HomePage.css";
 
 type Layout = "list" | "grid";
@@ -291,49 +288,14 @@ export function HomePage({
               )}
             </span>
           </Button>
-          {s.user && layout === "grid" && (
+          {s.user && (
             <SongMenu
               title={s.title}
+              variant={layout === "grid" ? "overlay" : "ghost"}
               onEdit={() => setEditingId(s.id)}
               onDownload={() => download(downloadSong(s))}
               onRemove={() => remove(s)}
             />
-          )}
-          {s.user && layout === "list" && (
-            <Button
-              variant="ghost"
-              icon
-              className="song-action"
-              onClick={() => setEditingId(s.id)}
-              aria-label={`Edit ${s.title}`}
-              title="Edit the title or cover"
-            >
-              <PencilIcon size={18} />
-            </Button>
-          )}
-          {s.user && layout === "list" && (
-            <Button
-              variant="ghost"
-              icon
-              className="song-action"
-              onClick={() => download(downloadSong(s))}
-              aria-label={`Download ${s.title}`}
-              title="Save the score as a MusicXML file"
-            >
-              <DownloadIcon size={18} />
-            </Button>
-          )}
-          {s.user && layout === "list" && (
-            <Button
-              variant="danger"
-              icon
-              className="song-action"
-              onClick={() => remove(s)}
-              aria-label={`Remove ${s.title}`}
-              title="Remove this song from your songs"
-            >
-              <TrashIcon size={18} />
-            </Button>
           )}
         </li>
       ))}
