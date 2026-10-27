@@ -122,9 +122,7 @@ export function TrainingPage({
     setOnScreenSound(sound);
     saveSetting(KEYBOARD_SOUND_KEY, sound);
   }, []);
-  const [keyLabels, setKeyLabels] = useState(() =>
-    loadSetting(KEY_LABELS_KEY),
-  );
+  const [keyLabels, setKeyLabels] = useState(() => loadSetting(KEY_LABELS_KEY));
   const changeKeyLabels = useCallback((show: boolean) => {
     setKeyLabels(show);
     saveSetting(KEY_LABELS_KEY, show);
@@ -355,36 +353,6 @@ export function TrainingPage({
 
   return (
     <div className="training-page">
-      <Toolbar
-        playing={playback.playing}
-        canPlay={steps.length > 0}
-        handMode={handMode}
-        loop={loop}
-        cursorNote={cursorNote}
-        loopNotes={loopNotes}
-        currentMeasure={currentMeasure}
-        measureCount={measureCount}
-        speed={speed}
-        fullKeyboard={fullKeyboard}
-        sound={onScreenSound}
-        keyLabels={keyLabels}
-        onHome={onHome}
-        onTogglePlayback={togglePlayback}
-        onNudge={nudge}
-        onRestart={restart}
-        onHandModeChange={setHandMode}
-        onLoopChange={setLoopRange}
-        followRepeats={followRepeats}
-        onFollowRepeatsChange={setFollowRepeats}
-        loopEndings={loopEndings}
-        onSpeedChange={changeSpeed}
-        onFullKeyboardChange={changeFullKeyboard}
-        onSoundChange={changeOnScreenSound}
-        onKeyLabelsChange={changeKeyLabels}
-        darkScore={darkScore}
-        onDarkScoreChange={changeDarkScore}
-      />
-
       <section className={darkScore ? "score-area score-dark" : "score-area"}>
         {scoreError && (
           <p className="error">Could not load score: {scoreError}</p>
@@ -417,6 +385,35 @@ export function TrainingPage({
           range={range}
           onNoteOn={onScreenNoteOn}
           onNoteOff={onScreenNoteOff}
+        />
+        <Toolbar
+          playing={playback.playing}
+          canPlay={steps.length > 0}
+          handMode={handMode}
+          loop={loop}
+          cursorNote={cursorNote}
+          loopNotes={loopNotes}
+          currentMeasure={currentMeasure}
+          measureCount={measureCount}
+          speed={speed}
+          fullKeyboard={fullKeyboard}
+          sound={onScreenSound}
+          keyLabels={keyLabels}
+          onHome={onHome}
+          onTogglePlayback={togglePlayback}
+          onNudge={nudge}
+          onRestart={restart}
+          onHandModeChange={setHandMode}
+          onLoopChange={setLoopRange}
+          followRepeats={followRepeats}
+          onFollowRepeatsChange={setFollowRepeats}
+          loopEndings={loopEndings}
+          onSpeedChange={changeSpeed}
+          onFullKeyboardChange={changeFullKeyboard}
+          onSoundChange={changeOnScreenSound}
+          onKeyLabelsChange={changeKeyLabels}
+          darkScore={darkScore}
+          onDarkScoreChange={changeDarkScore}
         />
       </section>
       <Status midi={midi} />

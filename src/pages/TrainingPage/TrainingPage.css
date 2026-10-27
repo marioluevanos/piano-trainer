@@ -8,7 +8,7 @@
 .keyboard-area {
   background: linear-gradient(var(--keyboard-bg-top), var(--bg));
   /* Clear of the fixed toolbar. */
-  padding: 4px 12px calc(var(--toolbar-height) + 4px);
+  padding: 4px;
 }
 
 .score-area {

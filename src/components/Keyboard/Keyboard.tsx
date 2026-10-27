@@ -1,84 +1,18 @@
 import { useMemo } from "react";
 import type { Hand, KeyState } from "../../engine/types";
+import {
+  BLACK_H,
+  BLACK_W,
+  FIRST_MIDI,
+  LAST_MIDI,
+  WHITE_H,
+  WHITE_W,
+  keyWidth,
+  keyboardViewBox,
+  layoutKeys,
+  type KeyGeom,
+} from "./keys";
 import "./Keyboard.css";
-
-const FIRST_MIDI = 21; // A0
-const LAST_MIDI = 108; // C8
-const WHITE_W = 23;
-const WHITE_H = 120;
-const BLACK_W = 14;
-const BLACK_H = 76;
-
-const NOTE_NAMES = [
-  "C",
-  "C#",
-  "D",
-  "D#",
-  "E",
-  "F",
-  "F#",
-  "G",
-  "G#",
-  "A",
-  "A#",
-  "B",
-];
-const FLAT_NAMES = [
-  "C",
-  "Db",
-  "D",
-  "Eb",
-  "E",
-  "F",
-  "Gb",
-  "G",
-  "Ab",
-  "A",
-  "Bb",
-  "B",
-];
-const BLACK_PC = new Set([1, 3, 6, 8, 10]);
-
-export function isBlackKey(midi: number): boolean {
-  return BLACK_PC.has(midi % 12);
-}
-
-export function noteName(midi: number, preferFlats = true): string {
-  const names = preferFlats ? FLAT_NAMES : NOTE_NAMES;
-  return names[midi % 12];
-}
-
-export function noteNameWithOctave(midi: number): string {
-  return `${noteName(midi)}${Math.floor(midi / 12) - 1}`;
-}
-
-interface KeyGeom {
-  midi: number;
-  black: boolean;
-  x: number;
-}
-
-/** Lay out 88 keys. Black keys sit between their neighbouring whites, slightly offset like a real piano. */
-function layoutKeys(): KeyGeom[] {
-  const keys: KeyGeom[] = [];
-  let whiteIndex = 0;
-  for (let midi = FIRST_MIDI; midi <= LAST_MIDI; midi++) {
-    const black = isBlackKey(midi);
-    if (!black) {
-      keys.push({ midi, black, x: whiteIndex * WHITE_W });
-      whiteIndex++;
-    } else {
-      // Offset the black key within the gap so groups of 2 and 3 read correctly.
-      const pc = midi % 12;
-      const shift = pc === 1 || pc === 6 ? -2 : pc === 3 || pc === 10 ? 2 : 0;
-      keys.push({ midi, black, x: whiteIndex * WHITE_W - BLACK_W / 2 + shift });
-    }
-  }
-  return keys;
-}
-
-const KEYS = layoutKeys();
-const TOTAL_W = 52 * WHITE_W;
 
 export interface KeyboardProps {
   keyStates: ReadonlyMap<number, KeyState>;
@@ -101,15 +35,8 @@ export function Keyboard({
   range,
 }: KeyboardProps) {
   const [lo, hi] = range ?? [FIRST_MIDI, LAST_MIDI];
-  const visible = useMemo(
-    () => KEYS.filter((k) => k.midi >= lo && k.midi <= hi),
-    [lo, hi],
-  );
-  const minX = visible.length ? Math.min(...visible.map((k) => k.x)) : 0;
-  const maxX = visible.length
-    ? Math.max(...visible.map((k) => k.x + (k.black ? BLACK_W : WHITE_W)))
-    : TOTAL_W;
-  const labelH = labels ? 28 : 0;
+  const layout = useMemo(() => layoutKeys([lo, hi]), [lo, hi]);
+  const box = keyboardViewBox(layout, labels !== undefined);
   const cls = (k: KeyGeom) =>
     `key ${k.black ? "black" : "white"} ${keyStates.get(k.midi) ?? "idle"}${hands?.has(k.midi) ? ` hand-${hands.get(k.midi)}` : ""}`;
 
@@ -130,13 +57,13 @@ export function Keyboard({
   return (
     <svg
       className="keyboard"
-      viewBox={`${minX} ${-labelH} ${maxX - minX} ${WHITE_H + labelH}`}
+      viewBox={`${box.x} ${box.y} ${box.width} ${box.height}`}
       preserveAspectRatio="xMidYMid meet"
       role="img"
       aria-label="Piano keyboard"
     >
       {/* White keys first so black keys draw on top. */}
-      {visible
+      {layout.keys
         .filter((k) => !k.black)
         .map((k) => (
           <rect
@@ -150,7 +77,7 @@ export function Keyboard({
             {...pointerHandlers(k.midi)}
           />
         ))}
-      {visible
+      {layout.keys
         .filter((k) => k.black)
         .map((k) => (
           <rect
@@ -165,13 +92,13 @@ export function Keyboard({
           />
         ))}
       {labels &&
-        visible
+        layout.keys
           .filter((k) => labels.has(k.midi))
           .map((k) => (
             <text
               key={`l${k.midi}`}
               className={`key-label${hands?.has(k.midi) ? ` hand-${hands.get(k.midi)}` : ""}`}
-              x={k.x + (k.black ? BLACK_W : WHITE_W) / 2}
+              x={k.x + keyWidth(k) / 2}
               y={-8}
               textAnchor="middle"
             >
