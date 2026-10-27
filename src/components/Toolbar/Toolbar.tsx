@@ -6,7 +6,13 @@ import { ChevronRightIcon } from "../Icons/ChevronRightIcon";
 import { PlayIcon } from "../Icons/PlayIcon";
 import { RestartIcon } from "../Icons/RestartIcon";
 import { StopIcon } from "../Icons/StopIcon";
+import { useMediaQuery } from "../useMediaQuery";
+import { togglePair } from "./togglePair";
+import { ViewToggle, type TrainingView } from "./ViewToggle";
 import "./Toolbar.css";
+
+/** Screens too narrow for every button: the view toggles move into the settings panel. */
+const NARROW_QUERY = "(max-width: 640px)";
 
 interface Props {
   /** Whether the song is playing back. */
@@ -46,6 +52,9 @@ interface Props {
   /** Whether the sheet music is drawn light on dark. */
   darkScore: boolean;
   onDarkScoreChange: (dark: boolean) => void;
+  /** What shows above the keyboard. */
+  view: TrainingView;
+  onViewChange: (view: TrainingView) => void;
 }
 
 /** Where the cursor is, in the terms a loop is set in. */
@@ -88,17 +97,16 @@ export function Toolbar({
   onKeyLabelsChange,
   darkScore,
   onDarkScoreChange,
+  view,
+  onViewChange,
 }: Props) {
   // Left and right are independent toggles; at least one hand always stays selected.
-  const leftOn = handMode !== "right";
-  const rightOn = handMode !== "left";
-  const toggleHand = (hand: "left" | "right") => {
-    const left = hand === "left" ? !leftOn : leftOn;
-    const right = hand === "right" ? !rightOn : rightOn;
-    if (left && right) onHandModeChange("both");
-    else if (left) onHandModeChange("left");
-    else if (right) onHandModeChange("right");
-  };
+  const hands = togglePair(handMode, {
+    first: "left",
+    second: "right",
+    both: "both",
+  });
+  const narrow = useMediaQuery(NARROW_QUERY);
 
   const measureOptions = Array.from({ length: measureCount }, (_, i) => i);
 
@@ -319,13 +327,19 @@ export function Toolbar({
               Dark score
             </label>
           </div>
+          {narrow && (
+            <div className="settings-row" role="group" aria-label="View">
+              <ViewToggle view={view} onChange={onViewChange} labeled />
+            </div>
+          )}
         </SettingsMenu>
+        {!narrow && <ViewToggle view={view} onChange={onViewChange} />}
         <Button
           className="hand-button hand-L"
           icon
-          active={leftOn}
-          onClick={() => toggleHand("left")}
-          aria-pressed={leftOn}
+          active={hands.firstOn}
+          onClick={() => onHandModeChange(hands.toggled("first"))}
+          aria-pressed={hands.firstOn}
           aria-label="Left hand"
           title="Left hand"
         >
@@ -334,9 +348,9 @@ export function Toolbar({
         <Button
           className="hand-button"
           icon
-          active={rightOn}
-          onClick={() => toggleHand("right")}
-          aria-pressed={rightOn}
+          active={hands.secondOn}
+          onClick={() => onHandModeChange(hands.toggled("second"))}
+          aria-pressed={hands.secondOn}
           aria-label="Right hand"
           title="Right hand"
         >

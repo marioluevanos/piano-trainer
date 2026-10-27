@@ -117,5 +117,10 @@ export interface ViewBox {
 /** The keyboard SVG's viewBox for a layout, with room for labels above the keys when `labeled`. */
 export function keyboardViewBox(layout: KeyLayout, labeled: boolean): ViewBox {
   const labelH = labeled ? LABEL_H : 0;
-  return { x: layout.x, y: -labelH, width: layout.width, height: WHITE_H + labelH };
+  return {
+    x: layout.x,
+    y: -labelH,
+    width: layout.width,
+    height: WHITE_H + labelH,
+  };
 }

@@ -3,10 +3,11 @@ import {
   loopSteps,
   type EngineOptions,
 } from "./practiceEngine.ts";
-import type { Step } from "./types";
+import type { Hand, Step } from "./types";
 
 export interface PlayNote {
   midi: number;
+  hand: Hand;
   /** Seconds. */
   duration: number;
 }
@@ -19,8 +20,17 @@ export interface PlayEvent {
   notes: PlayNote[];
 }
 
+/** When a step is reached, whether or not it has anything to play. */
+export interface PlannedStep {
+  stepIndex: number;
+  /** Seconds from the start of the playback range. */
+  time: number;
+}
+
 export interface PlaybackPlan {
   events: PlayEvent[];
+  /** Every step of the range in playing order, silent ones included. */
+  timeline: PlannedStep[];
   /** Seconds one pass through the range lasts. */
   length: number;
   /** Seconds into the range where the first pass begins (the cursor position). */
@@ -36,12 +46,14 @@ export interface PlaybackOptions extends EngineOptions {
 
 const EMPTY_PLAN: PlaybackPlan = {
   events: [],
+  timeline: [],
   length: 0,
   startOffset: 0,
   repeat: false,
 };
 
-function wholeNoteSeconds(bpm: number, speed: number): number {
+/** How long a whole note lasts at a tempo, scaled by the playback speed. */
+export function wholeNoteSeconds(bpm: number, speed: number): number {
   return (4 * 60) / (bpm * speed);
 }
 
@@ -55,7 +67,11 @@ function longestNote(step: Step): number {
  * since repeats and voltas make the next measure jump back or skip ahead.
  */
 function stepGap(step: Step, next: Step | undefined): number {
-  if (next && next.measure === step.measure && next.timestamp > step.timestamp) {
+  if (
+    next &&
+    next.measure === step.measure &&
+    next.timestamp > step.timestamp
+  ) {
     return next.timestamp - step.timestamp;
   }
   const rest = step.measureEnd - step.timestamp;
@@ -83,6 +99,7 @@ export function planPlayback(
 
   const start = order.includes(from) ? from : order[0];
   const events: PlayEvent[] = [];
+  const timeline: PlannedStep[] = [];
   let time = 0;
   let startOffset = 0;
   let lastNoteEnd = 0;
@@ -92,16 +109,17 @@ export function planPlayback(
     const step = steps[i];
     const seconds = wholeNoteSeconds(step.bpm, opts.speed);
     if (i === start) startOffset = time;
+    timeline.push({ stepIndex: i, time });
 
     const notes = expectedNotes(step, opts.handMode).map((n) => ({
       midi: n.midi,
+      hand: n.hand,
       duration: n.duration * seconds,
     }));
-    if (notes.length > 0) {
-      events.push({ time, stepIndex: i, notes });
-      const end = time + Math.max(...notes.map((n) => n.duration));
-      lastNoteEnd = Math.max(lastNoteEnd, end);
-    }
+    if (notes.length > 0) events.push({ time, stepIndex: i, notes });
+    // The piece ends when its last note has finished, whichever hand plays it,
+    // so every hand mode shares one timeline.
+    lastNoteEnd = Math.max(lastNoteEnd, time + longestNote(step) * seconds);
 
     // The last step of a pass leads into whatever follows it in the score.
     const next = k + 1 < order.length ? steps[order[k + 1]] : steps[i + 1];
@@ -112,7 +130,21 @@ export function planPlayback(
   // At the end of the piece it lasts until the final note has finished.
   const last = order[order.length - 1];
   const length = steps[last + 1] ? time : Math.max(time, lastNoteEnd);
-  return { events, length, startOffset, repeat: loop !== null };
+  return { events, timeline, length, startOffset, repeat: loop !== null };
+}
+
+/**
+ * Seconds into the current pass at `now` on the clock that playback started
+ * on, given the clock time pass 0 began (the plan's time 0). While looping
+ * this wraps at the pass length; otherwise it runs on past the end.
+ */
+export function passPosition(
+  plan: PlaybackPlan,
+  origin: number,
+  now: number,
+): number {
+  const elapsed = Math.max(now - origin, plan.startOffset);
+  return plan.repeat ? elapsed % plan.length : elapsed;
 }
 
 /** The step sounding at `time` seconds into a pass, or -1 before the first event. */

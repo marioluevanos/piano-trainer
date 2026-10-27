@@ -39,6 +39,16 @@
   --cover-3: #be185d;
   --cover-4: #c2410c;
   --cover-5: #4d7c0f;
+  /* The note roll above the keyboard: its surface, key columns and guide lines. */
+  --roll-bg: #0b0d12;
+  --roll-lane: rgb(255 255 255 / 0.035);
+  --roll-line: rgb(255 255 255 / 0.07);
+  --roll-guide: rgb(255 255 255 / 0.16);
+  --roll-playhead: rgb(255 255 255 / 0.35);
+  --roll-note-edge: rgb(0 0 0 / 0.35);
+  --note-roll-height: 30vh;
+  /* The on-screen keyboard never grows taller than this. */
+  --keyboard-max-height: 32vh;
   /* The training page's fixed bottom toolbar. */
   --toolbar-height: 40px;
   font-family:
@@ -48,6 +58,13 @@
     Roboto,
     sans-serif;
   color-scheme: dark;
+}
+
+@media (max-width: 640px) {
+  :root {
+    --note-roll-height: 22vh;
+    --keyboard-max-height: 26vh;
+  }
 }
 
 /* Dark sheet music, turned on in the settings panel. It applies to the score

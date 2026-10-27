@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Keyboard, noteName } from "../../components/Keyboard/Keyboard";
+import { Keyboard } from "../../components/Keyboard/Keyboard";
+import { noteName } from "../../components/Keyboard/keys";
+import { NoteRoll } from "../../components/NoteRoll/NoteRoll";
+import { PianoStage } from "../../components/PianoStage/PianoStage";
 import {
   ScoreView,
   type ScoreClick,
@@ -7,6 +10,7 @@ import {
 } from "../../components/ScoreView/ScoreView";
 import { Status } from "../../components/Status/Status";
 import { Toolbar, type CursorNote } from "../../components/Toolbar/Toolbar";
+import { parseTrainingView } from "../../components/Toolbar/ViewToggle";
 import {
   expectedMidi,
   expectedNotes,
@@ -21,6 +25,7 @@ import {
   type EngineState,
   endingsInLoop,
 } from "../../engine/practiceEngine";
+import { buildNoteRoll } from "../../engine/noteRoll";
 import type {
   EndingSet,
   Hand,
@@ -33,30 +38,14 @@ import { useMidiInput } from "../../midi/useMidiInput";
 import { usePlayback } from "../../midi/usePlayback";
 import { synthNoteOff, synthNoteOn } from "../../midi/synth";
 import type { Song } from "../../songs";
+import { useSetting, useStoredSetting } from "./useSetting";
 import "./TrainingPage.css";
 
 const FULL_KEYBOARD_KEY = "piano-trainer.full-keyboard.v1";
 const KEYBOARD_SOUND_KEY = "piano-trainer.keyboard-sound.v1";
 const KEY_LABELS_KEY = "piano-trainer.key-labels.v1";
 const DARK_SCORE_KEY = "piano-trainer.dark-score.v1";
-
-/** Reads a remembered on/off setting, `fallback` until it is first changed. */
-function loadSetting(key: string, fallback = true): boolean {
-  try {
-    const saved = localStorage.getItem(key);
-    return saved === null ? fallback : saved === "true";
-  } catch {
-    return fallback;
-  }
-}
-
-function saveSetting(key: string, on: boolean) {
-  try {
-    localStorage.setItem(key, String(on));
-  } catch {
-    // Not remembering a setting is harmless.
-  }
-}
+const VIEW_KEY = "piano-trainer.view.v1";
 
 interface TrainingPageProps {
   /** The song to train on; undefined while the library loads or when it is gone. */
@@ -108,32 +97,15 @@ export function TrainingPage({
     () => (loop && !followRepeats ? endingsInLoop(endings, loop) : null),
     [endings, loop, followRepeats],
   );
-  const [fullKeyboard, setFullKeyboard] = useState(() =>
-    loadSetting(FULL_KEYBOARD_KEY),
+  const [fullKeyboard, changeFullKeyboard] = useSetting(FULL_KEYBOARD_KEY);
+  const [onScreenSound, changeOnScreenSound] = useSetting(KEYBOARD_SOUND_KEY);
+  const [keyLabels, changeKeyLabels] = useSetting(KEY_LABELS_KEY);
+  const [darkScore, changeDarkScore] = useSetting(DARK_SCORE_KEY, false);
+  const [view, changeView] = useStoredSetting(
+    VIEW_KEY,
+    "both",
+    parseTrainingView,
   );
-  const changeFullKeyboard = useCallback((full: boolean) => {
-    setFullKeyboard(full);
-    saveSetting(FULL_KEYBOARD_KEY, full);
-  }, []);
-  const [onScreenSound, setOnScreenSound] = useState(() =>
-    loadSetting(KEYBOARD_SOUND_KEY),
-  );
-  const changeOnScreenSound = useCallback((sound: boolean) => {
-    setOnScreenSound(sound);
-    saveSetting(KEYBOARD_SOUND_KEY, sound);
-  }, []);
-  const [keyLabels, setKeyLabels] = useState(() => loadSetting(KEY_LABELS_KEY));
-  const changeKeyLabels = useCallback((show: boolean) => {
-    setKeyLabels(show);
-    saveSetting(KEY_LABELS_KEY, show);
-  }, []);
-  const [darkScore, setDarkScore] = useState(() =>
-    loadSetting(DARK_SCORE_KEY, false),
-  );
-  const changeDarkScore = useCallback((dark: boolean) => {
-    setDarkScore(dark);
-    saveSetting(DARK_SCORE_KEY, dark);
-  }, []);
   const [speed, setSpeed] = useState(1);
 
   const [engine, setEngine] = useState<EngineState>(() => initialState());
@@ -249,6 +221,12 @@ export function TrainingPage({
     handleNoteOff(m);
   };
 
+  // The falling notes, laid out the way playback will play them.
+  const roll = useMemo(
+    () => buildNoteRoll(steps, loop, speed),
+    [steps, loop, speed],
+  );
+
   const currentMeasure = currentStep ? currentStep.measure : 0;
 
   // The note under the cursor, for "Start here" and "End here".
@@ -353,7 +331,11 @@ export function TrainingPage({
 
   return (
     <div className="training-page">
-      <section className={darkScore ? "score-area score-dark" : "score-area"}>
+      {/* Hidden rather than unmounted when not shown: rendering the score is what produces the steps. */}
+      <section
+        className={darkScore ? "score-area score-dark" : "score-area"}
+        hidden={view === "roll"}
+      >
         {scoreError && (
           <p className="error">Could not load score: {scoreError}</p>
         )}
@@ -377,15 +359,30 @@ export function TrainingPage({
           </p>
         )}
       </section>
-      <section className="keyboard-area">
-        <Keyboard
-          keyStates={keyStates}
-          hands={hands}
-          labels={keyLabels ? labels : undefined}
-          range={range}
-          onNoteOn={onScreenNoteOn}
-          onNoteOff={onScreenNoteOff}
-        />
+      <section
+        className={view === "roll" ? "keyboard-area fill" : "keyboard-area"}
+      >
+        <PianoStage range={range} labeled={keyLabels}>
+          {view !== "score" && (
+            <NoteRoll
+              roll={roll}
+              range={range}
+              handMode={handMode}
+              stepIndex={engine.stepIndex}
+              playing={playback.playing}
+              position={playback.position}
+              labels={keyLabels}
+            />
+          )}
+          <Keyboard
+            keyStates={keyStates}
+            hands={hands}
+            labels={keyLabels ? labels : undefined}
+            range={range}
+            onNoteOn={onScreenNoteOn}
+            onNoteOff={onScreenNoteOff}
+          />
+        </PianoStage>
         <Toolbar
           playing={playback.playing}
           canPlay={steps.length > 0}
@@ -414,6 +411,8 @@ export function TrainingPage({
           onKeyLabelsChange={changeKeyLabels}
           darkScore={darkScore}
           onDarkScoreChange={changeDarkScore}
+          view={view}
+          onViewChange={changeView}
         />
       </section>
       <Status midi={midi} />

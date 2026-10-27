@@ -1,0 +1,6 @@
+.note-roll {
+  display: block;
+  width: 100%;
+  height: var(--note-roll-height);
+  border-radius: 10px 10px 0 0;
+}

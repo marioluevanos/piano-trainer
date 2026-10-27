@@ -73,3 +73,8 @@
   font-size: 12px;
   color: var(--accent);
 }
+
+/* Labeled buttons in the panel (the view toggles on narrow screens) space their icon from the text. */
+.settings-row .button {
+  gap: 6px;
+}

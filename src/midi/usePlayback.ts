@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  passPosition,
   planPlayback,
   stepAtTime,
   type PlaybackOptions,
+  type PlaybackPlan,
 } from "../engine/playback";
 import type { Step } from "../engine/types";
 import { audioNow, synthSchedule, synthStopScheduled } from "./synth";
@@ -24,13 +26,21 @@ interface UsePlaybackOptions {
   onEnd: () => void;
 }
 
+/** What is playing: the plan and when its time 0 fell on the audio clock. */
+interface Run {
+  plan: PlaybackPlan;
+  origin: number;
+}
+
 /**
  * Plays the score through the synth. A timer schedules notes a little ahead
- * on the audio clock and reports the step under the playhead.
+ * on the audio clock and reports the step under the playhead, which
+ * `position` also reads directly for anything animating in time with it.
  */
 export function usePlayback({ onStep, onEnd }: UsePlaybackOptions) {
   const [playing, setPlaying] = useState(false);
   const timerRef = useRef<number | null>(null);
+  const runRef = useRef<Run | null>(null);
   const onStepRef = useRef(onStep);
   onStepRef.current = onStep;
   const onEndRef = useRef(onEnd);
@@ -42,7 +52,14 @@ export function usePlayback({ onStep, onEnd }: UsePlaybackOptions) {
       timerRef.current = null;
     }
     synthStopScheduled();
+    runRef.current = null;
     setPlaying(false);
+  }, []);
+
+  /** Seconds into the current pass of the range, or null while stopped. */
+  const position = useCallback(() => {
+    const run = runRef.current;
+    return run ? passPosition(run.plan, run.origin, audioNow()) : null;
   }, []);
 
   const play = useCallback(
@@ -53,6 +70,7 @@ export function usePlayback({ onStep, onEnd }: UsePlaybackOptions) {
 
       // Pass k through the range starts at origin + k * plan.length on the audio clock.
       const origin = audioNow() + LEAD_IN - plan.startOffset;
+      runRef.current = { plan, origin };
       let pass = 0;
       let next = plan.events.findIndex((e) => e.time >= plan.startOffset);
       if (next < 0) next = plan.events.length;
@@ -74,13 +92,12 @@ export function usePlayback({ onStep, onEnd }: UsePlaybackOptions) {
           next++;
         }
 
-        const elapsed = Math.max(now - origin, plan.startOffset);
-        if (!plan.repeat && elapsed >= plan.length) {
+        const inPass = passPosition(plan, origin, now);
+        if (!plan.repeat && inPass >= plan.length) {
           stop();
           onEndRef.current();
           return;
         }
-        const inPass = plan.repeat ? elapsed % plan.length : elapsed;
         const step = stepAtTime(plan, inPass);
         if (step >= 0 && step !== shownStep) {
           shownStep = step;
@@ -97,5 +114,5 @@ export function usePlayback({ onStep, onEnd }: UsePlaybackOptions) {
 
   useEffect(() => stop, [stop]);
 
-  return { playing, play, stop };
+  return { playing, play, stop, position };
 }
