@@ -68,8 +68,8 @@
 }
 
 /* Dark sheet music, turned on in the settings panel. It applies to the score
-   only; the UI and keyboard stay as is. */
-.score-area.score-dark {
+   (and its song info popover) only; the UI and keyboard stay as is. */
+.score-dark {
   --score-bg: #000;
   --score-text: #e4e4e7;
   --score-ledger-line: #888;

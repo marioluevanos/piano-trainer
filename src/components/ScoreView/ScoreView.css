@@ -16,57 +16,6 @@
   stroke: var(--score-ledger-line);
 }
 
-/* Zero-height sticky bar so the info button floats over the score without
-   taking vertical space, and stays visible while scrolling. */
-.score-info {
-  position: fixed;
-  top: 8px;
-  left: 8px;
-  z-index: 2;
-  height: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-
-  /* The info button takes the sheet music's palette. */
-  --text: var(--score-muted);
-  --control-bg: color-mix(in srgb, var(--score-surface) 85%, transparent);
-  --control-border: var(--score-border);
-  --accent: var(--score-accent);
-  --on-accent: var(--score-surface);
-}
-
-.score-info-button {
-  margin-top: 0;
-}
-
-.score-info-panel {
-  position: absolute;
-  left: 1.5rem;
-  top: 1.5rem;
-  /* Size to the longest credit line, but wrap rather than run past the right
-     edge of the viewport (8px .score-info inset + left offset + 8px gutter). */
-  width: max-content;
-  max-width: calc(100vw - 1.5rem - 16px);
-  overflow-wrap: break-word;
-  padding: 8px 16px;
-  background: var(--score-surface);
-  border: 1px solid var(--score-border);
-  border-radius: 10px;
-  box-shadow: 0 8px 24px var(--score-shadow);
-}
-
-.score-info-panel h2 {
-  margin: 0 0 4px;
-  font-size: 1.05rem;
-}
-
-.score-info-panel p {
-  margin: 2px 0 0;
-  color: var(--score-muted);
-  font-size: 0.9rem;
-}
-
 /* The loop's shading, laid out in px over the score (see loopBandsFor). It
    sits in the scrolling score area so it scrolls with the music, and never
    takes taps meant for the notes. */

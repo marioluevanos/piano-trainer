@@ -5,10 +5,8 @@ import {
   type GraphicalMeasure,
 } from "opensheetmusicdisplay";
 import { buildSteps } from "../../score/buildSteps";
-import { Button } from "../Button/Button";
 import { createSmoothScroller, type SmoothScroller } from "./smoothScroller";
 import type { EndingSet, LoopRange, Step } from "../../engine/types";
-import { InfoIcon } from "../Icons/InfoIcon";
 import "./ScoreView.css";
 
 /** Where a click landed on the score. */
@@ -25,6 +23,8 @@ export interface ScoreInfo {
   /** The alternate endings of each repeat that has more than one. */
   endings: EndingSet[];
   title: string;
+  /** Credit lines for the song info popover: title first, then subtitle, composer, lyricist. */
+  credits: string[];
 }
 
 interface ScoreViewProps {
@@ -65,9 +65,6 @@ export function ScoreView({
   onErrorRef.current = onError;
   const cursorStepRef = useRef(cursorStep);
   cursorStepRef.current = cursorStep;
-  const infoRef = useRef<HTMLDivElement>(null);
-  const [credits, setCredits] = useState<string[]>([]);
-  const [infoOpen, setInfoOpen] = useState(false);
   const loopLayerRef = useRef<HTMLDivElement>(null);
   const [loopBands, setLoopBands] = useState<LoopBand[]>([]);
   const loopRef = useRef(loop);
@@ -125,8 +122,6 @@ export function ScoreView({
     if (!el) return;
     let disposed = false;
     readyRef.current = false;
-    setCredits([]);
-    setInfoOpen(false);
 
     const accent = getComputedStyle(el).getPropertyValue("--accent").trim();
     const osmd = new OpenSheetMusicDisplay(el, {
@@ -165,14 +160,6 @@ export function ScoreView({
         osmd.cursor.show();
         followCursor();
         const sheet = osmd.Sheet;
-        setCredits(
-          [
-            sheet.TitleString,
-            sheet.SubtitleString,
-            sheet.ComposerString,
-            sheet.LyricistString,
-          ].filter((line): line is string => !!line?.trim()),
-        );
         const steps = buildSteps(osmd);
         cursorPosRef.current = 0;
         readyRef.current = true;
@@ -188,6 +175,12 @@ export function ScoreView({
             })),
           ).filter((set) => set.length > 1),
           title: osmd.Sheet.TitleString ?? "",
+          credits: [
+            sheet.TitleString,
+            sheet.SubtitleString,
+            sheet.ComposerString,
+            sheet.LyricistString,
+          ].filter((line): line is string => !!line?.trim()),
         });
       })
       .catch((err: unknown) => {
@@ -286,53 +279,8 @@ export function ScoreView({
     syncCursor();
   }, [cursorStep]);
 
-  // Close the info popover on outside press or Escape.
-  useEffect(() => {
-    if (!infoOpen) return;
-    const onPointerDown = (e: PointerEvent) => {
-      if (!infoRef.current?.contains(e.target as Node)) setInfoOpen(false);
-    };
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setInfoOpen(false);
-    };
-    document.addEventListener("pointerdown", onPointerDown);
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("pointerdown", onPointerDown);
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [infoOpen]);
-
   return (
     <>
-      {credits.length > 0 && (
-        <div className="score-info" ref={infoRef}>
-          <Button
-            className="score-info-button"
-            size="xs"
-            icon
-            round
-            active={infoOpen}
-            onClick={() => setInfoOpen((o) => !o)}
-            aria-label="Song info"
-            aria-expanded={infoOpen}
-            title="Song info"
-          >
-            <InfoIcon size={18} />
-          </Button>
-          {infoOpen && (
-            <div
-              className="score-info-panel"
-              role="dialog"
-              aria-label="Song info"
-            >
-              {credits.map((line, i) =>
-                i === 0 ? <h2 key={i}>{line}</h2> : <p key={i}>{line}</p>,
-              )}
-            </div>
-          )}
-        </div>
-      )}
       {/* Before the score so the notes paint over the shading. */}
       <div ref={loopLayerRef} className="score-loop" aria-hidden="true">
         {loopBands.map((b, i) => (

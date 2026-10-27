@@ -11,6 +11,7 @@ import {
   noteOff,
   noteOn,
   stepBy,
+  sustainedNotes,
 } from "./practiceEngine.ts";
 import type { Step } from "./types.ts";
 
@@ -239,4 +240,35 @@ test("a loop can start and end on a note inside a measure", () => {
 test("measureNoteTimes lists a measure's notes, skipping rests", () => {
   assert.deepEqual(measureNoteTimes(steps, 0), [0, 0.25]);
   assert.deepEqual(measureNoteTimes(steps, 1), [0.5]);
+});
+
+test("a tied note stays sustained until its tie ends, within one pass", () => {
+  const step = (index: number, timestamp: number, notes: Step["notes"]) => ({
+    index,
+    measure: Math.floor(timestamp),
+    timestamp,
+    measureEnd: Math.floor(timestamp) + 1,
+    bpm: 120,
+    notes,
+  });
+  // A whole note tied over the bar (lasting 2), under moving quarter notes.
+  const tied: Step[] = [
+    step(0, 0, [
+      { midi: 72, hand: "R", duration: 2 },
+      { midi: 48, hand: "L", duration: 0.25 },
+    ]),
+    step(1, 1, [{ midi: 50, hand: "L", duration: 0.25 }]),
+    step(2, 1.75, [{ midi: 52, hand: "L", duration: 0.25 }]),
+    step(3, 2, [{ midi: 53, hand: "L", duration: 0.25 }]),
+    // A repeat jumps back to the start.
+    step(4, 0, [{ midi: 48, hand: "L", duration: 0.25 }]),
+  ];
+  const midis = (i: number, mode: "both" | "left" | "right" = "both") =>
+    sustainedNotes(tied, i, mode).map((n) => n.midi);
+  assert.deepEqual(midis(0), [], "struck here, not sustained");
+  assert.deepEqual(midis(1), [72]);
+  assert.deepEqual(midis(2), [72]);
+  assert.deepEqual(midis(1, "left"), [], "other hand is not shown");
+  assert.deepEqual(midis(3), [], "the tie has ended");
+  assert.deepEqual(midis(4), [], "nothing carries across a repeat");
 });

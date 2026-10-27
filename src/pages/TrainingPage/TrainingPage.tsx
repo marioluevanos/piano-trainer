@@ -8,6 +8,7 @@ import {
   type ScoreClick,
   type ScoreInfo,
 } from "../../components/ScoreView/ScoreView";
+import { SongInfo } from "../../components/SongInfo/SongInfo";
 import { Status } from "../../components/Status/Status";
 import { Toolbar, type CursorNote } from "../../components/Toolbar/Toolbar";
 import { parseTrainingView } from "../../components/Toolbar/ViewToggle";
@@ -22,6 +23,7 @@ import {
   noteOff as engineNoteOff,
   noteOn as engineNoteOn,
   stepBy,
+  sustainedNotes,
   type EngineState,
   endingsInLoop,
 } from "../../engine/practiceEngine";
@@ -83,6 +85,7 @@ export function TrainingPage({
   const [steps, setSteps] = useState<Step[]>([]);
   const [measureCount, setMeasureCount] = useState(0);
   const [endings, setEndings] = useState<EndingSet[]>([]);
+  const [credits, setCredits] = useState<string[]>([]);
   const [scoreError, setScoreError] = useState<string | null>(null);
 
   const [handMode, setHandMode] = useState<HandMode>("both");
@@ -160,6 +163,7 @@ export function TrainingPage({
     setSteps(info.steps);
     setMeasureCount(info.measureCount);
     setEndings(info.endings);
+    setCredits(info.credits);
     setLoopRange(null);
   }, []);
 
@@ -169,14 +173,26 @@ export function TrainingPage({
     [currentStep, handMode],
   );
 
+  const sustained = useMemo(
+    () => sustainedNotes(steps, engine.stepIndex, handMode),
+    [steps, engine.stepIndex, handMode],
+  );
+
   const keyStates = useMemo(() => {
     const m = new Map<number, KeyState>();
     for (const n of expected) m.set(n, "expected");
+    // A tied note still sounding stays lit until the tie ends; holding it down is correct.
+    const sustainedMidi = new Set<number>();
+    for (const n of sustained) {
+      if (expected.has(n.midi)) continue;
+      sustainedMidi.add(n.midi);
+      m.set(n.midi, "expected");
+    }
     // A held note that fell out of the chord window stays "expected" until it is struck again.
     for (const n of engine.held)
       m.set(
         n,
-        engine.hits.has(n)
+        engine.hits.has(n) || sustainedMidi.has(n)
           ? "correct"
           : expected.has(n)
             ? "expected"
@@ -185,13 +201,14 @@ export function TrainingPage({
     for (const n of engine.misses) m.set(n, "wrong");
     for (const n of engine.hits) if (!engine.held.has(n)) m.set(n, "correct");
     return m;
-  }, [expected, engine.held, engine.misses, engine.hits]);
+  }, [expected, sustained, engine.held, engine.misses, engine.hits]);
 
   const hands = useMemo(() => {
     const m = new Map<number, Hand>();
+    for (const n of sustained) m.set(n.midi, n.hand);
     for (const n of expectedNotes(currentStep, handMode)) m.set(n.midi, n.hand);
     return m;
-  }, [currentStep, handMode]);
+  }, [currentStep, handMode, sustained]);
 
   const labels = useMemo(() => {
     const m = new Map<number, string>();
@@ -331,6 +348,7 @@ export function TrainingPage({
 
   return (
     <div className="training-page">
+      <SongInfo credits={credits} dark={darkScore} />
       {/* Hidden rather than unmounted when not shown: rendering the score is what produces the steps. */}
       <section
         className={darkScore ? "score-area score-dark" : "score-area"}

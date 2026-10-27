@@ -59,6 +59,41 @@ export function expectedMidi(
   return new Set(expectedNotes(step, handMode).map((n) => n.midi));
 }
 
+/** Tolerance when comparing timestamps, which are floats in whole notes. */
+const TIME_EPSILON = 1e-6;
+
+/**
+ * Notes struck at an earlier step that are still sounding at `index`, such as a
+ * tied whole note: their keys stay down but are not struck again. Walks back
+ * through `steps` until the score jumps backward (a repeat), so a note from
+ * another pass never counts. A note the step strikes again is left out.
+ */
+export function sustainedNotes(
+  steps: Step[],
+  index: number,
+  handMode: HandMode,
+): StepNote[] {
+  const step = steps[index];
+  if (!step) return [];
+  const key = (n: StepNote) => `${n.hand}:${n.midi}`;
+  const seen = new Set(step.notes.map(key));
+  const sustained: StepNote[] = [];
+  let later = step.timestamp;
+  for (let i = index - 1; i >= 0; i--) {
+    const prev = steps[i];
+    if (prev.timestamp >= later) break;
+    later = prev.timestamp;
+    for (const n of expectedNotes(prev, handMode)) {
+      if (prev.timestamp + n.duration <= step.timestamp + TIME_EPSILON)
+        continue;
+      if (seen.has(key(n))) continue;
+      seen.add(key(n));
+      sustained.push(n);
+    }
+  }
+  return sustained;
+}
+
 let loopCache: { steps: Step[]; loop: LoopRange; order: number[] } | null =
   null;
 
