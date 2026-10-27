@@ -13,7 +13,7 @@ import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "
 import { basename, extname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { inflateRawSync } from "node:zlib";
-import { isMusicXml, songTitle } from "../src/songs/metadata.ts";
+import { isMusicXml, songMetadata } from "../src/songs/metadata.ts";
 
 const SONGS_DIR = fileURLToPath(new URL("../library/", import.meta.url));
 const SCORE_EXTENSIONS = new Set([".mxl", ".musicxml", ".xml"]);
@@ -186,8 +186,8 @@ function main() {
       continue;
     }
 
-    const title = songTitle(xml, basename(file, extname(file)));
-    const target = `${slug(title.split(" — ")[0])}.musicxml`; // file name from the title, not the composer
+    const { title, artist } = songMetadata(xml, basename(file, extname(file)));
+    const target = `${slug(title)}.musicxml`; // file name from the title, not the composer
     const targetPath = join(SONGS_DIR, target);
     if (existsSync(targetPath) && !force) {
       console.error(`✗ ${name}: ${target} already exists with different content (use --force to replace it)`);
@@ -198,7 +198,7 @@ function main() {
     if (!dryRun) writeFileSync(targetPath, xml);
     existing.set(sha(xml), target);
     imported++;
-    console.log(`✓ ${name} → ${relative(process.cwd(), targetPath)}  "${title}"`);
+    console.log(`✓ ${name} → ${relative(process.cwd(), targetPath)}  "${title}"${artist ? ` by ${artist}` : ""}`);
     for (const w of scoreWarnings(xml)) console.log(`    ⚠ ${w}`);
   }
 

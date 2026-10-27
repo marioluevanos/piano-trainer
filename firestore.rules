@@ -17,9 +17,12 @@ service cloud.firestore {
     match /pianoTrainerUsers/{uid}/songs/{songId} {
       allow read, delete: if request.auth != null && request.auth.uid == uid;
       allow create, update: if request.auth != null && request.auth.uid == uid
-        && request.resource.data.keys().hasOnly(["title", "format", "createdAt", "coverVersion"])
+        && request.resource.data.keys().hasOnly(["title", "artist", "format", "createdAt", "coverVersion"])
         && request.resource.data.title is string
         && request.resource.data.title.size() <= 300
+        && (!("artist" in request.resource.data)
+          || (request.resource.data.artist is string
+            && request.resource.data.artist.size() <= 300))
         && request.resource.data.format in ["xml", "mxl"]
         && (!("coverVersion" in request.resource.data)
           || request.resource.data.coverVersion is int);

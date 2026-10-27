@@ -62,7 +62,7 @@ interface Props {
   onOpen: (id: string) => void;
   /** Saves a new song. Throws (with a message for the user) if that fails. */
   onAdd: (song: ImportedSong, details: SongDetails) => Promise<void>;
-  /** Changes a song's title or cover. Throws if that fails. */
+  /** Changes a song's title, artist or cover. Throws if that fails. */
   onEdit: (id: string, details: SongDetails) => Promise<void>;
   onRemove: (id: string) => void;
   onSignIn: () => void;
@@ -125,6 +125,7 @@ function SongListSkeleton({
             <span className="song-cover bone" />
             <span className="song-text">
               <span className="song-title bone">&nbsp;</span>
+              <span className="song-artist bone">&nbsp;</span>
             </span>
           </span>
         </li>
@@ -149,6 +150,7 @@ function EditSongDialog({
       heading="Edit song"
       submitLabel="Save"
       initialTitle={song.title}
+      initialArtist={song.artist ?? ""}
       initialCoverUrl={coverUrl}
       onSubmit={(details) => onEdit(song.id, details)}
       onClose={onClose}
@@ -283,6 +285,7 @@ export function HomePage({
             <SongCover song={s} />
             <span className="song-text">
               <span className="song-title">{s.title}</span>
+              {s.artist && <span className="song-artist">{s.artist}</span>}
               {s.id === lastSongId && (
                 <span className="song-badge">Last played</span>
               )}
@@ -302,7 +305,6 @@ export function HomePage({
     </ul>
   );
 
-  console.log({ user });
   return (
     <div className="home">
       <header className="home-header">
@@ -510,6 +512,7 @@ export function HomePage({
           heading="Add song"
           submitLabel="Add song"
           initialTitle={adding.song.title}
+          initialArtist={adding.song.artist ?? ""}
           initialCoverUrl={null}
           fileName={adding.fileName}
           onSubmit={(details) => add(adding.song, details)}

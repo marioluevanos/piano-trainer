@@ -10,6 +10,8 @@ interface Props {
   heading: string;
   submitLabel: string;
   initialTitle: string;
+  /** The current composer, artist or album; empty when unknown. */
+  initialArtist: string;
   /** The current cover, shown until the user picks another or removes it. */
   initialCoverUrl: string | null;
   /** The score file being added, shown as a reminder of what was picked. */
@@ -19,11 +21,12 @@ interface Props {
   onClose: () => void;
 }
 
-/** A modal for a song's title and optional square cover, used to add and to edit songs. */
+/** A modal for a song's title, artist and optional square cover, used to add and to edit songs. */
 export function SongDialog({
   heading,
   submitLabel,
   initialTitle,
+  initialArtist,
   initialCoverUrl,
   fileName,
   onSubmit,
@@ -32,6 +35,7 @@ export function SongDialog({
   const dialogRef = useRef<HTMLDialogElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const [title, setTitle] = useState(initialTitle);
+  const [artist, setArtist] = useState(initialArtist);
   /** A new cover, null once removed, or undefined while unchanged. */
   const [cover, setCover] = useState<Blob | null | undefined>(undefined);
   const [coverUrl, setCoverUrl] = useState<string | null>(null);
@@ -69,7 +73,7 @@ export function SongDialog({
     e.preventDefault();
     setBusy(true);
     try {
-      await onSubmit({ title, cover });
+      await onSubmit({ title, artist, cover });
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -145,6 +149,16 @@ export function SongDialog({
                 onChange={(e) => setTitle(e.target.value)}
                 maxLength={300}
                 required
+                disabled={busy}
+              />
+            </label>
+            <label>
+              Artist or album
+              <input
+                value={artist}
+                onChange={(e) => setArtist(e.target.value)}
+                maxLength={300}
+                placeholder="Optional"
                 disabled={busy}
               />
             </label>

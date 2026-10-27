@@ -19,6 +19,7 @@ export interface PendingScan {
 interface Stored {
   id: string;
   title: string;
+  artist?: string;
   format: ImportedSong["format"];
   fileName: string;
   /** The score bytes as base64. */
@@ -30,6 +31,7 @@ export function savePendingScan({ song, fileName }: PendingScan) {
     const stored: Stored = {
       id: song.id,
       title: song.title,
+      ...(song.artist && { artist: song.artist }),
       format: song.format,
       fileName,
       bytes: toBase64(song.bytes),
@@ -44,9 +46,20 @@ export function loadPendingScan(): PendingScan | null {
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return null;
-    const { id, title, format, fileName, bytes } = JSON.parse(raw) as Stored;
+    const { id, title, artist, format, fileName, bytes } = JSON.parse(
+      raw,
+    ) as Stored;
     if (!id || !bytes || (format !== "xml" && format !== "mxl")) return null;
-    return { song: { id, title, format, bytes: fromBase64(bytes) }, fileName };
+    return {
+      song: {
+        id,
+        title,
+        ...(artist && { artist }),
+        format,
+        bytes: fromBase64(bytes),
+      },
+      fileName,
+    };
   } catch {
     return null;
   }

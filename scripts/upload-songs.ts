@@ -4,7 +4,9 @@
  *   npm run upload-songs [-- --dry-run] [--prune]
  *
  * Uploads every library/*.musicxml whose content changed since the last
- * upload (compared by hash). An image next to a score with the same name
+ * upload (compared by hash); a song whose score is unchanged but whose stored
+ * title or artist differs from the score's metadata (e.g. after a change to
+ * how it is read) gets just those fields updated. An image next to a score with the same name
  * (fur-elise.webp / .jpg / .jpeg / .png) becomes its cover. Covers are not
  * resized here, so make them square and small (under MAX_COVER_BYTES). --prune also deletes library songs that no longer
  * have a file here. The app picks the changes up live; no redeploy needed.
@@ -19,7 +21,7 @@ import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
 import { initializeApp } from "firebase-admin/app";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
-import { songTitle } from "../src/songs/metadata.ts";
+import { songMetadata } from "../src/songs/metadata.ts";
 import { LIBRARY_DOC, MAX_COVER_BYTES, MAX_SCORE_BYTES } from "../src/songs/paths.ts";
 
 const SONGS_DIR = fileURLToPath(new URL("../library/", import.meta.url));
@@ -47,6 +49,8 @@ async function main() {
     (await songsRef.get()).docs.map((d) => [
       d.id,
       {
+        title: d.get("title") as string | undefined,
+        artist: d.get("artist") as string | undefined,
         sha: d.get("sha") as string | undefined,
         coverSha: d.get("coverSha") as string | undefined,
         coverVersion: d.get("coverVersion") as number | undefined,
@@ -74,9 +78,17 @@ async function main() {
     }
     const coverSha = cover && sha256(cover);
     const before = uploaded.get(id);
-    if (before?.sha === sha && before.coverSha === coverSha) continue;
+    const { title, artist } = songMetadata(xml, id);
+    if (before?.sha === sha && before.coverSha === coverSha) {
+      if (before.title === title && before.artist === artist) continue;
+      if (!dryRun) {
+        await songsRef.doc(id).update({ title, artist: artist ?? FieldValue.delete() });
+      }
+      changed++;
+      console.log(`↻ ${id}  "${title}"${artist ? ` by ${artist}` : ""}  (metadata only)`);
+      continue;
+    }
 
-    const title = songTitle(xml, id);
     const data = gzipSync(xml, { level: 9 });
     if (data.length > MAX_SCORE_BYTES) {
       console.error(`✗ ${file}: ${data.length} bytes compressed, over Firestore's limit`);
@@ -91,6 +103,7 @@ async function main() {
       batch.set(scoresRef.doc(id), { data });
       batch.set(songsRef.doc(id), {
         title,
+        ...(artist && { artist }),
         format: "xml",
         sha,
         updatedAt: FieldValue.serverTimestamp(),
@@ -112,7 +125,7 @@ async function main() {
     const kb = (n: number) => `${Math.round(n / 1024)} kB`;
     const coverNote = before?.coverSha === coverSha ? "" : cover ? `  + cover ${kb(cover.length)}` : "  − cover";
     console.log(
-      `${before ? "↻" : "✓"} ${id}  "${title}"  ${kb(xml.length)} → ${kb(data.length)}${coverNote}`,
+      `${before ? "↻" : "✓"} ${id}  "${title}"${artist ? ` by ${artist}` : ""}  ${kb(xml.length)} → ${kb(data.length)}${coverNote}`,
     );
   }
 

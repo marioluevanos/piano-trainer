@@ -1,8 +1,8 @@
 /*
  * Where songs live in Firestore. Shared by the app and scripts/upload-songs.ts.
  *
- * A song is two documents with the same id: a small one in `songs` (the title,
- * read to build the song list) and one in `scores` holding the score itself as
+ * A song is two documents with the same id: a small one in `songs` (the title
+ * and optional artist, read to build the song list) and one in `scores` holding the score itself as
  * bytes: gzip-compressed MusicXML for "xml", the .mxl archive as-is for "mxl".
  * Keeping them apart means the list never downloads every score.
  *

@@ -75,6 +75,10 @@
   min-width: 0;
 }
 
+.song-dialog-fields label + label {
+  margin-top: 12px;
+}
+
 .song-dialog-fields label {
   display: flex;
   flex-direction: column;

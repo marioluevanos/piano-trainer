@@ -18,6 +18,13 @@
   --on-accent: var(--score-surface);
 }
 
+@media (display-mode: fullscreen) {
+  .score-info {
+    top: 2rem;
+    left: 2rem;
+  }
+}
+
 .score-info-button {
   margin-top: 0;
 }

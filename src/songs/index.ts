@@ -1,6 +1,8 @@
 export interface Song {
   id: string;
   title: string;
+  /** The composer, artist or album, shown under the title; absent when unknown. */
+  artist?: string;
   /** "xml": MusicXML text. "mxl": a compressed MusicXML (.mxl) archive. */
   format: "xml" | "mxl";
   /** True for songs the user imported (removable). */

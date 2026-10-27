@@ -19,7 +19,7 @@ import {
 } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { decodeScore, gzipText, type Song } from "./index";
-import { isMusicXml, songTitle } from "./metadata";
+import { isMusicXml, songMetadata, storedMetadata } from "./metadata";
 import {
   LIBRARY_DOC,
   MAX_COVER_BYTES,
@@ -52,6 +52,7 @@ export function saveSelectedSongId(id: string) {
 export interface ImportedSong {
   id: string;
   title: string;
+  artist?: string;
   format: Song["format"];
   bytes: Uint8Array<ArrayBuffer>;
 }
@@ -59,6 +60,8 @@ export interface ImportedSong {
 /** What the user can set when adding or editing a song. */
 export interface SongDetails {
   title: string;
+  /** The composer, artist or album; blank for none. */
+  artist: string;
   /** The new cover, null to remove it, or undefined to keep the current one. */
   cover?: Blob | null;
 }
@@ -80,7 +83,7 @@ export async function readSongFile(file: File): Promise<ImportedSong> {
   }
   return {
     id,
-    title: songTitle(text, fallback),
+    ...songMetadata(text, fallback),
     format: "xml",
     bytes: await gzipText(text),
   };
@@ -93,13 +96,13 @@ function cloudSong(
   base: string,
   user: boolean,
 ): Song {
-  const { title, format, coverVersion } = snap.data() as Pick<
+  const { title, artist, format, coverVersion } = snap.data() as Pick<
     Song,
-    "title" | "format" | "coverVersion"
+    "title" | "artist" | "format" | "coverVersion"
   >;
   return {
     id: snap.id,
-    title,
+    ...storedMetadata(title, artist),
     format,
     user,
     load: async () => {
@@ -133,12 +136,16 @@ function checkTitle(title: string) {
   if (!title.trim()) throw new Error("The song needs a title.");
 }
 
+/** The artist as stored: trimmed, or undefined when blank. */
+const artistOf = ({ artist }: SongDetails) => artist.trim() || undefined;
+
 /** Save a song, and its cover if any, to the signed-in user's library in Firestore. */
 async function uploadSong(
   uid: string,
   song: ImportedSong,
-  { title, cover }: SongDetails,
+  details: SongDetails,
 ) {
+  const { title, cover } = details;
   const { bytes } = song;
   checkTitle(title);
   if (bytes.length > MAX_SCORE_BYTES) {
@@ -147,8 +154,10 @@ async function uploadSong(
   const base = userDoc(uid);
   const batch = writeBatch(db);
   const coverVersion = cover ? Date.now() : undefined;
+  const artist = artistOf(details);
   batch.set(doc(db, base, "songs", song.id), {
     title: title.trim(),
+    ...(artist && { artist }),
     format: song.format,
     createdAt: serverTimestamp(),
     ...(coverVersion && { coverVersion }),
@@ -232,9 +241,11 @@ export function useSongLibrary() {
       setError(null);
       const { id, format, bytes } = song;
       const { cover } = details;
+      const artist = artistOf(details);
       return {
         id,
         title: details.title.trim(),
+        ...(artist && { artist }),
         format,
         user: true,
         load: () => decodeScore(format, bytes),
@@ -245,15 +256,17 @@ export function useSongLibrary() {
     [user],
   );
 
-  /** Change the title or cover of one of the user's songs. Throws if it cannot be saved. */
+  /** Change the title, artist or cover of one of the user's songs. Throws if it cannot be saved. */
   const editSong = useCallback(
-    async (id: string, { title, cover }: SongDetails) => {
+    async (id: string, details: SongDetails) => {
       if (!user) throw new Error("Sign in to edit songs.");
+      const { title, cover } = details;
       checkTitle(title);
       const base = userDoc(user.uid);
       const batch = writeBatch(db);
       batch.update(doc(db, base, "songs", id), {
         title: title.trim(),
+        artist: artistOf(details) ?? deleteField(),
         ...(cover !== undefined && {
           coverVersion: cover ? Date.now() : deleteField(),
         }),
