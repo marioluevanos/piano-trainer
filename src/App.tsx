@@ -10,7 +10,6 @@ import {
   type SongDetails,
 } from "./songs/library";
 import { useNavigation } from "./navigation/useNavigation";
-import { useFullscreen } from "./components/useFullscreen";
 
 export default function App() {
   const library = useSongLibrary();
@@ -23,9 +22,6 @@ export default function App() {
   useEffect(() => {
     if (songId) saveSelectedSongId(songId);
   }, [songId]);
-
-  // The installed app uses the whole screen, without the phone's system bars.
-  useFullscreen();
 
   // Fetch the piano samples up front so the first note does not fall back to the plain tone.
   useEffect(() => {

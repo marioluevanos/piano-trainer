@@ -43,6 +43,7 @@ import type { Song } from "../../songs";
 import { useLandscapeLock } from "./useLandscapeLock";
 import { useSetting, useStoredSetting } from "./useSetting";
 import "./TrainingPage.css";
+import { useFullscreen } from "../../components/useFullscreen";
 
 const FULL_KEYBOARD_KEY = "piano-trainer.full-keyboard.v1";
 const KEYBOARD_SOUND_KEY = "piano-trainer.keyboard-sound.v1";
@@ -75,6 +76,9 @@ export function TrainingPage({
 
   // Training is laid out for landscape.
   useLandscapeLock();
+
+  // The installed app uses the whole screen, without the phone's system bars.
+  useFullscreen();
 
   const [steps, setSteps] = useState<Step[]>([]);
   const [measureCount, setMeasureCount] = useState(0);

@@ -29,7 +29,7 @@ export function useFullscreen() {
 
     const enter = () => {
       if (document.fullscreenElement) return;
-      root.requestFullscreen({ navigationUI: "hide" }).catch(() => {});
+      root.requestFullscreen({ navigationUI: "auto" }).catch(() => {});
     };
     // Touch input grants the activation fullscreen needs on pointerup, not pointerdown.
     window.addEventListener("pointerup", enter);

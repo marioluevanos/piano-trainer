@@ -20,6 +20,13 @@
   animation: status-in 200ms ease;
 }
 
+@media (display-mode: fullscreen) {
+  .status {
+    top: 1rem;
+    right: 1rem;
+  }
+}
+
 @keyframes status-in {
   from {
     opacity: 0;
