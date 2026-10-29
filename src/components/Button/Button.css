@@ -5,7 +5,7 @@
 
 @layer button {
   .button {
-    --button-size: 36px;
+    --button-size: 40px;
     display: inline-flex;
     align-items: center;
     justify-content: center;

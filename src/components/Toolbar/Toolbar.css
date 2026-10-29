@@ -1,15 +1,12 @@
 .toolbar {
   position: relative;
-  margin-top: 2px;
-
+  margin-top: 4px;
   display: flex;
   flex-wrap: nowrap;
   gap: 8px;
   align-items: center;
   height: var(--toolbar-height);
   padding: 0;
-  background: var(--panel);
-  border-top: 1px solid var(--border);
   font-size: 14px;
 }
 
