@@ -5,7 +5,7 @@ export interface Song {
   artist?: string;
   /** "xml": MusicXML text. "mxl": a compressed MusicXML (.mxl) archive. */
   format: "xml" | "mxl";
-  /** True for songs the user imported (removable). */
+  /** True for songs the user imported, which live in their account; absent for the shared library. */
   user?: boolean;
   /** Fetches the score: XML text, or a Blob for a compressed .mxl, ready for OSMD. */
   load: () => Promise<string | Blob>;

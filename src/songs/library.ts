@@ -29,6 +29,23 @@ import {
 
 const SELECTED_KEY = "piano-trainer.selected-song.v1";
 
+/**
+ * Google accounts that may edit or remove shared library songs from the app,
+ * just like their own. Must match `libraryEditor()` in firestore.rules, which
+ * is what actually enforces it.
+ */
+const LIBRARY_EDITORS = ["marioluevanos@gmail.com"];
+
+/** Whether this user may edit the shared library's songs. */
+export function canEditLibrary(user: User | null): boolean {
+  return !!user?.email && LIBRARY_EDITORS.includes(user.email.toLowerCase());
+}
+
+/** Whether this user may edit or remove the song. */
+export function canEditSong(user: User | null, song: Song): boolean {
+  return song.user ? user !== null : canEditLibrary(user);
+}
+
 /** The id of the song selected last time, if any. */
 export function loadSelectedSongId(): string | null {
   try {
@@ -256,13 +273,31 @@ export function useSongLibrary() {
     [user],
   );
 
-  /** Change the title, artist or cover of one of the user's songs. Throws if it cannot be saved. */
+  /**
+   * Where a song's documents live: the user's account for their own songs,
+   * the shared library otherwise (which only library editors may write; see
+   * firestore.rules). Throws when not signed in.
+   */
+  const baseOf = useCallback(
+    (song: Song, verb: string) => {
+      if (!user) throw new Error(`Sign in to ${verb} songs.`);
+      return song.user ? userDoc(user.uid) : LIBRARY_DOC;
+    },
+    [user],
+  );
+
+  /**
+   * Change the title, artist or cover of one of the user's songs, or of a
+   * shared song when the user is a library editor. Throws if it cannot be
+   * saved. A shared song is also stamped `editedAt`, so the upload script
+   * keeps the edit instead of restoring the file's metadata.
+   */
   const editSong = useCallback(
-    async (id: string, details: SongDetails) => {
-      if (!user) throw new Error("Sign in to edit songs.");
+    async (song: Song, details: SongDetails) => {
+      const base = baseOf(song, "edit");
       const { title, cover } = details;
       checkTitle(title);
-      const base = userDoc(user.uid);
+      const { id } = song;
       const batch = writeBatch(db);
       batch.update(doc(db, base, "songs", id), {
         title: title.trim(),
@@ -270,26 +305,32 @@ export function useSongLibrary() {
         ...(cover !== undefined && {
           coverVersion: cover ? Date.now() : deleteField(),
         }),
+        ...(!song.user && { editedAt: serverTimestamp() }),
       });
       if (cover) batch.set(doc(db, base, "covers", id), await coverDoc(cover));
       else if (cover === null) batch.delete(doc(db, base, "covers", id));
       await batch.commit();
       setError(null);
     },
-    [user],
+    [baseOf],
   );
 
+  /** Delete one of the user's songs, or a shared song when the user is a library editor. */
   const removeSong = useCallback(
-    async (id: string) => {
-      if (!user) return;
-      const base = userDoc(user.uid);
-      const batch = writeBatch(db);
-      batch.delete(doc(db, base, "songs", id));
-      batch.delete(doc(db, base, "scores", id));
-      batch.delete(doc(db, base, "covers", id));
-      await batch.commit().catch((err) => setError(message(err)));
+    async (song: Song) => {
+      try {
+        const base = baseOf(song, "remove");
+        const { id } = song;
+        const batch = writeBatch(db);
+        batch.delete(doc(db, base, "songs", id));
+        batch.delete(doc(db, base, "scores", id));
+        batch.delete(doc(db, base, "covers", id));
+        await batch.commit();
+      } catch (err) {
+        setError(message(err));
+      }
     },
-    [user],
+    [baseOf],
   );
 
   const signIn = useCallback(async () => {

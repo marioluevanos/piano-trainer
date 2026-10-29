@@ -3,6 +3,7 @@ import type { User } from "firebase/auth";
 import type { Song } from "../../songs";
 import { useCoverUrl } from "../../songs/cover";
 import {
+  canEditSong,
   readSongFile,
   type ImportedSong,
   type SongDetails,
@@ -63,8 +64,8 @@ interface Props {
   /** Saves a new song. Throws (with a message for the user) if that fails. */
   onAdd: (song: ImportedSong, details: SongDetails) => Promise<void>;
   /** Changes a song's title, artist or cover. Throws if that fails. */
-  onEdit: (id: string, details: SongDetails) => Promise<void>;
-  onRemove: (id: string) => void;
+  onEdit: (song: Song, details: SongDetails) => Promise<void>;
+  onRemove: (song: Song) => void;
   onSignIn: () => void;
   onSignOut: () => void;
 }
@@ -134,7 +135,7 @@ function SongListSkeleton({
   );
 }
 
-/** The edit dialog for one of the user's songs, previewing its current cover. */
+/** The edit dialog for a song, previewing its current cover. */
 function EditSongDialog({
   song,
   onEdit,
@@ -152,7 +153,7 @@ function EditSongDialog({
       initialTitle={song.title}
       initialArtist={song.artist ?? ""}
       initialCoverUrl={coverUrl}
-      onSubmit={(details) => onEdit(song.id, details)}
+      onSubmit={(details) => onEdit(song, details)}
       onClose={onClose}
     />
   );
@@ -267,7 +268,8 @@ export function HomePage({
   };
 
   const remove = (song: Song) => {
-    if (confirm(`Remove "${song.title}" from your songs?`)) onRemove(song.id);
+    const where = song.user ? "your songs" : "the shared library, for everyone";
+    if (confirm(`Remove "${song.title}" from ${where}?`)) onRemove(song);
   };
 
   const shared = songs.filter((s) => !s.user);
@@ -291,7 +293,7 @@ export function HomePage({
               )}
             </span>
           </Button>
-          {s.user && (
+          {canEditSong(user, s) && (
             <SongMenu
               title={s.title}
               variant={layout === "grid" ? "overlay" : "ghost"}

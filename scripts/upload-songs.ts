@@ -11,6 +11,12 @@
  * resized here, so make them square and small (under MAX_COVER_BYTES). --prune also deletes library songs that no longer
  * have a file here. The app picks the changes up live; no redeploy needed.
  *
+ * A song edited in the app by a library editor (see firestore.rules) carries
+ * `editedAt`. Its title, artist and cover are then left as edited: only the
+ * score, and a cover whose image file changed here, are uploaded again. A
+ * song removed in the app comes back on the next upload unless its file is
+ * removed from library/ too.
+ *
  * Writes go through the Admin SDK, which bypasses firestore.rules, using your
  * Google credentials: run `gcloud auth application-default login` once first.
  */
@@ -54,6 +60,7 @@ async function main() {
         sha: d.get("sha") as string | undefined,
         coverSha: d.get("coverSha") as string | undefined,
         coverVersion: d.get("coverVersion") as number | undefined,
+        editedAt: d.get("editedAt") as unknown,
       },
     ]),
   );
@@ -78,9 +85,14 @@ async function main() {
     }
     const coverSha = cover && sha256(cover);
     const before = uploaded.get(id);
-    const { title, artist } = songMetadata(xml, id);
-    if (before?.sha === sha && before.coverSha === coverSha) {
-      if (before.title === title && before.artist === artist) continue;
+    const edited = !!before?.editedAt;
+    // The app's edits win over the file's metadata.
+    const { title, artist } = edited
+      ? { title: before!.title ?? id, artist: before!.artist }
+      : songMetadata(xml, id);
+    const coverChanged = coverSha !== before?.coverSha;
+    if (before?.sha === sha && !coverChanged) {
+      if (edited || (before.title === title && before.artist === artist)) continue;
       if (!dryRun) {
         await songsRef.doc(id).update({ title, artist: artist ?? FieldValue.delete() });
       }
@@ -95,9 +107,11 @@ async function main() {
       process.exitCode = 1;
       continue;
     }
-    // Keep the cover version unless the cover changed, so clients keep their cached image.
-    const coverVersion =
-      cover && ((before?.coverSha === coverSha && before?.coverVersion) || Date.now());
+    // Keep the cover version unless the image file changed, so clients keep
+    // their cached image (and an edited song keeps the cover set in the app).
+    const coverVersion = coverChanged
+      ? cover && Date.now()
+      : before?.coverVersion;
     if (!dryRun) {
       const batch = db.batch();
       batch.set(scoresRef.doc(id), { data });
@@ -107,23 +121,25 @@ async function main() {
         format: "xml",
         sha,
         updatedAt: FieldValue.serverTimestamp(),
-        ...(cover && { coverSha, coverVersion }),
+        ...(coverSha && { coverSha }),
+        ...(coverVersion && { coverVersion }),
+        ...(edited && { editedAt: before!.editedAt }),
       });
-      if (cover) {
-        if (before?.coverSha !== coverSha) {
+      if (coverChanged) {
+        if (cover) {
           batch.set(coversRef.doc(id), {
             data: cover,
             type: COVER_TYPES[extname(coverFile!).toLowerCase()],
           });
+        } else {
+          batch.delete(coversRef.doc(id));
         }
-      } else if (before?.coverSha) {
-        batch.delete(coversRef.doc(id));
       }
       await batch.commit();
     }
     changed++;
     const kb = (n: number) => `${Math.round(n / 1024)} kB`;
-    const coverNote = before?.coverSha === coverSha ? "" : cover ? `  + cover ${kb(cover.length)}` : "  − cover";
+    const coverNote = !coverChanged ? "" : cover ? `  + cover ${kb(cover.length)}` : "  − cover";
     console.log(
       `${before ? "↻" : "✓"} ${id}  "${title}"${artist ? ` by ${artist}` : ""}  ${kb(xml.length)} → ${kb(data.length)}${coverNote}`,
     );

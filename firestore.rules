@@ -6,41 +6,83 @@ rules_version = '2';
 // needs to allow it.
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Shared song library: anyone can read it; only scripts/upload-songs.ts
-    // writes it (via the Admin SDK, which bypasses these rules).
-    match /pianoTrainer/library/{collection}/{songId} {
-      allow read: if collection in ["songs", "scores", "covers"];
-      allow write: if false;
+    function signedInAs(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    // The accounts that may edit the shared library from the app. Must match
+    // LIBRARY_EDITORS in src/songs/library.ts.
+    function libraryEditor() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email.lower() in ["marioluevanos@gmail.com"];
+    }
+
+    // What the app may store in a song doc (see src/songs/paths.ts).
+    function validTitle(data) {
+      return data.title is string && data.title.size() <= 300;
+    }
+    function validArtist(data) {
+      return !("artist" in data)
+        || (data.artist is string && data.artist.size() <= 300);
+    }
+    function validCoverVersion(data) {
+      return !("coverVersion" in data) || data.coverVersion is int;
+    }
+    function validScore(data) {
+      return data.keys().hasOnly(["data"]) && data.data is bytes;
+    }
+    function validCover(data) {
+      return data.keys().hasOnly(["data", "type"])
+        && data.data is bytes
+        && data.data.size() <= 300000
+        && data.type in ["image/webp", "image/jpeg"];
+    }
+
+    // Shared song library: anyone can read it. scripts/upload-songs.ts writes
+    // it via the Admin SDK (bypassing these rules); a library editor may also
+    // change a song's title, artist or cover, or delete a song, from the app.
+    // The script's own bookkeeping fields (sha, coverSha, updatedAt) stay as
+    // they are, and editedAt marks a song the script must not revert.
+    match /pianoTrainer/library/songs/{songId} {
+      allow read: if true;
+      allow delete: if libraryEditor();
+      allow update: if libraryEditor()
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(["title", "artist", "coverVersion", "editedAt"])
+        && validTitle(request.resource.data)
+        && validArtist(request.resource.data)
+        && validCoverVersion(request.resource.data)
+        && request.resource.data.editedAt == request.time;
+    }
+    match /pianoTrainer/library/scores/{songId} {
+      allow read: if true;
+      allow delete: if libraryEditor();
+    }
+    match /pianoTrainer/library/covers/{songId} {
+      allow read: if true;
+      allow delete: if libraryEditor();
+      allow create, update: if libraryEditor() && validCover(request.resource.data);
     }
 
     // Songs a user imported: only that user can read or change them.
     match /pianoTrainerUsers/{uid}/songs/{songId} {
-      allow read, delete: if request.auth != null && request.auth.uid == uid;
-      allow create, update: if request.auth != null && request.auth.uid == uid
+      allow read, delete: if signedInAs(uid);
+      allow create, update: if signedInAs(uid)
         && request.resource.data.keys().hasOnly(["title", "artist", "format", "createdAt", "coverVersion"])
-        && request.resource.data.title is string
-        && request.resource.data.title.size() <= 300
-        && (!("artist" in request.resource.data)
-          || (request.resource.data.artist is string
-            && request.resource.data.artist.size() <= 300))
+        && validTitle(request.resource.data)
+        && validArtist(request.resource.data)
         && request.resource.data.format in ["xml", "mxl"]
-        && (!("coverVersion" in request.resource.data)
-          || request.resource.data.coverVersion is int);
+        && validCoverVersion(request.resource.data);
     }
     match /pianoTrainerUsers/{uid}/scores/{songId} {
-      allow read, delete: if request.auth != null && request.auth.uid == uid;
-      allow create, update: if request.auth != null && request.auth.uid == uid
-        && request.resource.data.keys().hasOnly(["data"])
-        && request.resource.data.data is bytes;
+      allow read, delete: if signedInAs(uid);
+      allow create, update: if signedInAs(uid) && validScore(request.resource.data);
     }
     // A song's optional cover image (see src/songs/paths.ts).
     match /pianoTrainerUsers/{uid}/covers/{songId} {
-      allow read, delete: if request.auth != null && request.auth.uid == uid;
-      allow create, update: if request.auth != null && request.auth.uid == uid
-        && request.resource.data.keys().hasOnly(["data", "type"])
-        && request.resource.data.data is bytes
-        && request.resource.data.data.size() <= 300000
-        && request.resource.data.type in ["image/webp", "image/jpeg"];
+      allow read, delete: if signedInAs(uid);
+      allow create, update: if signedInAs(uid) && validCover(request.resource.data);
     }
   }
 }
