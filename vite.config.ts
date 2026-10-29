@@ -20,9 +20,11 @@ export default defineConfig({
         description: "Piano practice with sheet music, wait mode and loops.",
         theme_color: "#0f1115",
         background_color: "#1c1f27",
-        display: "fullscreen",
-        // No orientation here: it would hold every page. The training page
-        // locks itself to landscape (useLandscapeLock).
+        // Standalone keeps the phone's status and navigation bars; the training
+        // page alone goes fullscreen (useFullscreen) and locks itself to
+        // landscape (useLandscapeLock). Neither belongs here: the manifest
+        // would hold every page.
+        display: "standalone",
         // A fixed id keeps installed copies tied to this manifest, so they pick up
         // changes (like the display mode) instead of becoming a different app.
         id: "/",
