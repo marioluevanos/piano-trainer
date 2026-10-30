@@ -46,6 +46,7 @@ import { useLandscapeLock } from "./useLandscapeLock";
 import { useSetting, useStoredSetting } from "./useSetting";
 import "./TrainingPage.css";
 import { useFullscreen } from "../../components/useFullscreen";
+import { useWakeLock } from "../../components/useWakeLock";
 
 const FULL_KEYBOARD_KEY = "piano-trainer.full-keyboard.v1";
 const KEYBOARD_SOUND_KEY = "piano-trainer.keyboard-sound.v1";
@@ -148,6 +149,10 @@ export function TrainingPage({
     onNoteOn: handleNoteOn,
     onNoteOff: handleNoteOff,
   });
+
+  // The screen stays on while the song plays or a MIDI keyboard is attached:
+  // neither involves touching the phone.
+  useWakeLock(playback.playing || midi.inputs.length > 0);
 
   // Reset the engine (and stop playback) whenever the song, hand mode or loop changes.
   const stopPlayback = playback.stop;
