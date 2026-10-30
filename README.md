@@ -5,7 +5,7 @@ A personal flowkey-style practice app: sheet music on the bottom, a keyboard on 
 ## Features
 
 - **Wait mode** — the cursor only advances once every note in the current slice has been struck. Wrong notes flash red and don't advance.
-- **Loop** — pick a start and end measure (or "Start here" / "End here" at the current cursor position); the cursor wraps back automatically.
+- **Loop** — switch it on in the settings drawer and drag the handles on the score (or step the From/To measures); the cursor wraps back automatically.
 - **Hand select** — Left / Both / Right. The other hand's notes are skipped so you're never stuck waiting on a note you're not practicing.
 - **Playback** — ▶ Play the selected hands from the cursor at 50–125% speed, with the cursor and keys following along. Loops repeat until stopped.
 - Web MIDI input from any connected keyboard; tap-to-play fallback with a sampled grand piano for testing without a piano.

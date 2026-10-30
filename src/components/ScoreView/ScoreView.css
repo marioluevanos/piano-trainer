@@ -23,20 +23,82 @@
   position: absolute;
   top: 0;
   left: 0;
+  z-index: 1;
   pointer-events: none;
 }
 
 .score-loop-band {
   position: absolute;
   background: color-mix(in srgb, var(--score-accent) 12%, transparent);
-  border-radius: 6px;
 }
 
 /* The loop's first and last notes get a solid edge, like brackets. */
 .score-loop-band.start {
-  border-left: 3px solid var(--score-accent);
+  border-left: 4px solid var(--score-accent);
+  margin-left: -2px;
 }
 
 .score-loop-band.end {
-  border-right: 3px solid var(--score-accent);
+  border-right: 4px solid var(--score-accent);
+}
+
+/* "Loop 2–4" above the loop's start. */
+.score-loop-pill {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 12px;
+  margin-left: -6px;
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+  color: var(--score-surface);
+  background: var(--score-accent);
+  border-radius: 14px;
+  box-shadow: 0 2px 6px var(--score-shadow);
+}
+
+/* The handles are the one part of the layer that takes the pointer: a 44px
+   target around a pill-shaped grip centered on the loop's edge. */
+.score-loop-handle {
+  position: absolute;
+  width: 44px;
+  height: 64px;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+  cursor: ew-resize;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.score-loop-handle::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 18px;
+  height: 56px;
+  transform: translate(-50%, -50%);
+  background: var(--score-accent);
+  border-radius: 9px;
+  box-shadow: 0 2px 6px var(--score-shadow);
+  transition: transform 120ms ease;
+}
+
+.score-loop-handle:is(:hover, .active)::before {
+  transform: translate(-50%, -50%) scale(1.1);
+}
+
+/* While dragging, nothing on the page gets selected. */
+.score-loop.dragging {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .score-loop-handle::before {
+    transition: none;
+  }
 }

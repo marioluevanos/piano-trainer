@@ -1,18 +1,38 @@
+import { useCallback, useState } from "react";
+import { setLoopMeasure } from "../../engine/practiceEngine";
 import type { HandMode, LoopRange } from "../../engine/types";
 import { Button } from "../Button/Button";
-import { SettingsMenu } from "../SettingsMenu/SettingsMenu";
 import { ChevronLeftIcon } from "../Icons/ChevronLeftIcon";
 import { ChevronRightIcon } from "../Icons/ChevronRightIcon";
+import { LoopIcon } from "../Icons/LoopIcon";
+import { MetronomeIcon } from "../Icons/MetronomeIcon";
 import { PlayIcon } from "../Icons/PlayIcon";
 import { RestartIcon } from "../Icons/RestartIcon";
+import { SlidersIcon } from "../Icons/SlidersIcon";
 import { StopIcon } from "../Icons/StopIcon";
+import {
+  SettingsDrawer,
+  SettingsGroup,
+  type SettingsTab,
+} from "../SettingsDrawer/SettingsDrawer";
+import { Stepper } from "../Stepper/Stepper";
+import { Switch } from "../Switch/Switch";
 import { useMediaQuery } from "../useMediaQuery";
 import { togglePair } from "./togglePair";
 import { ViewToggle, type TrainingView } from "./ViewToggle";
 import "./Toolbar.css";
 
-/** Screens too narrow for every button: the view toggles move into the settings panel. */
+/** Screens too narrow for every button: the view toggles move into the settings drawer. */
 const NARROW_QUERY = "(max-width: 640px)";
+
+/** Speed runs from 25% to 200% in steps of 5%. */
+const SPEED_MIN = 0.25;
+const SPEED_MAX = 2;
+const SPEED_STEP = 0.05;
+const SPEED_PRESETS = [0.5, 0.75, 1];
+
+/** How many measures a new loop spans when switched on from the drawer. */
+const DEFAULT_LOOP_MEASURES = 2;
 
 interface Props {
   /** Whether the song is playing back. */
@@ -21,13 +41,13 @@ interface Props {
   canPlay: boolean;
   handMode: HandMode;
   loop: LoopRange | null;
-  /** The note under the cursor, for setting a loop end on it; null before the score loads. */
-  cursorNote: CursorNote | null;
   /** 1-based note numbers the loop starts and ends on, when it starts or ends mid-measure. */
   loopNotes: { start: number | null; end: number | null };
   /** The measure under the cursor, zero-based. */
   currentMeasure: number;
   measureCount: number;
+  /** The tempo at the cursor in quarter notes per minute, or null before the score loads. */
+  bpm: number | null;
   speed: number;
   fullKeyboard: boolean;
   sound: boolean;
@@ -57,27 +77,38 @@ interface Props {
   onViewChange: (view: TrainingView) => void;
 }
 
-/** Where the cursor is, in the terms a loop is set in. */
-export interface CursorNote {
-  measure: number;
-  /** Absolute timestamp (whole notes). */
-  timestamp: number;
-  /** True on the measure's first note; a loop starting there takes the whole measure. */
-  first: boolean;
-  /** True on the measure's last note; a loop ending there takes the whole measure. */
-  last: boolean;
+/** "3" for a whole measure, "3.2" for its second note. */
+export function loopEdgeLabel(measure: number, note: number | null): string {
+  return note === null ? `${measure + 1}` : `${measure + 1}.${note}`;
 }
 
-/** The practice toolbar, fixed along the bottom: settings, hands, note nudging and playback. */
+/** "2–4", the loop's measures (with note numbers for mid-measure edges). */
+export function loopRangeLabel(
+  loop: LoopRange,
+  notes: { start: number | null; end: number | null },
+): string {
+  return `${loopEdgeLabel(loop.startMeasure, notes.start)}–${loopEdgeLabel(loop.endMeasure, notes.end)}`;
+}
+
+/** The speed as a whole percentage, e.g. "80%". */
+export function speedLabel(speed: number): string {
+  return `${Math.round(speed * 100)}%`;
+}
+
+/**
+ * The practice toolbar, fixed along the bottom: settings, hands, note nudging
+ * and playback. A chip beside the measure shows the loop and speed while the
+ * drawer is closed, so they are never a surprise.
+ */
 export function Toolbar({
   playing,
   canPlay,
   handMode,
   loop,
-  cursorNote,
   loopNotes,
   currentMeasure,
   measureCount,
+  bpm,
   speed,
   fullKeyboard,
   sound,
@@ -108,52 +139,189 @@ export function Toolbar({
   });
   const narrow = useMediaQuery(NARROW_QUERY);
 
-  const measureOptions = Array.from({ length: measureCount }, (_, i) => i);
-
-  // A mid-measure loop end reads "3.2": measure 3, note 2.
-  const loopEnd = (measure: number, note: number | null) =>
-    note === null ? `${measure + 1}` : `${measure + 1}.${note}`;
-  const loopLabel = loop
-    ? ` • Loop ${loopEnd(loop.startMeasure, loopNotes.start)}–${loopEnd(loop.endMeasure, loopNotes.end)}`
-    : "";
-
-  // Start or end the loop on the note under the cursor. On a measure's first
-  // (or last) note the loop takes the whole measure, so it shows no note label.
-  // When the new end would fall before the other one, that end moves to the
-  // whole cursor measure so the loop never runs backward.
-  const setLoopFromHere = (which: "start" | "end") => {
-    if (!cursorNote) return;
-    const { measure, timestamp, first, last } = cursorNote;
-    const next: LoopRange = {
-      ...(loop ?? { startMeasure: 0, endMeasure: measureCount - 1 }),
-    };
-    if (which === "start") {
-      next.startMeasure = measure;
-      next.startTimestamp = first ? undefined : timestamp;
-      const endsBefore =
-        next.endMeasure < measure ||
-        (next.endMeasure === measure &&
-          next.endTimestamp !== undefined &&
-          next.endTimestamp < timestamp);
-      if (endsBefore) {
-        next.endMeasure = measure;
-        next.endTimestamp = undefined;
-      }
-    } else {
-      next.endMeasure = measure;
-      next.endTimestamp = last ? undefined : timestamp;
-      const startsAfter =
-        next.startMeasure > measure ||
-        (next.startMeasure === measure &&
-          next.startTimestamp !== undefined &&
-          next.startTimestamp > timestamp);
-      if (startsAfter) {
-        next.startMeasure = measure;
-        next.startTimestamp = undefined;
-      }
-    }
-    onLoopChange(next);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [tab, setTab] = useState<SettingsTab>("practice");
+  const openDrawer = (to?: SettingsTab) => {
+    if (to) setTab(to);
+    setDrawerOpen(true);
   };
+  const closeDrawer = useCallback(() => setDrawerOpen(false), []);
+
+  // Switching the loop on without one loops a few measures from the cursor.
+  const toggleLoop = (on: boolean) => {
+    if (!on) return onLoopChange(null);
+    const last = Math.max(0, measureCount - 1);
+    const start = Math.min(currentMeasure, last);
+    onLoopChange({
+      startMeasure: start,
+      endMeasure: Math.min(last, start + DEFAULT_LOOP_MEASURES - 1),
+    });
+  };
+  const stepLoop = (which: "start" | "end", delta: 1 | -1) => {
+    if (!loop) return;
+    const measure =
+      (which === "start" ? loop.startMeasure : loop.endMeasure) + delta;
+    onLoopChange(setLoopMeasure(loop, which, measure, measureCount));
+  };
+
+  const speedPercent = Math.round(speed * 100);
+  const changeSpeed = (next: number) =>
+    onSpeedChange(
+      Math.min(SPEED_MAX, Math.max(SPEED_MIN, Math.round(next * 100) / 100)),
+    );
+  const activeSettings = [
+    loop && loopRangeLabel(loop, loopNotes),
+    speedPercent !== 100 && speedLabel(speed),
+  ].filter((s): s is string => !!s);
+
+  const practice = (
+    <>
+      <section className="settings-section">
+        <div className="settings-section-header">
+          <Switch
+            layout="inline"
+            icon={<LoopIcon />}
+            label="Loop section"
+            checked={!!loop}
+            disabled={!canPlay}
+            onChange={toggleLoop}
+          />
+        </div>
+        <div className="settings-fields">
+          <div className="settings-field">
+            <span className="settings-field-label">From measure</span>
+            <Stepper
+              label="From measure"
+              display={
+                loop ? loopEdgeLabel(loop.startMeasure, loopNotes.start) : "–"
+              }
+              disabled={!loop}
+              canDecrement={!!loop && loop.startMeasure > 0}
+              canIncrement={!!loop && loop.startMeasure < measureCount - 1}
+              onDecrement={() => stepLoop("start", -1)}
+              onIncrement={() => stepLoop("start", 1)}
+            />
+          </div>
+          <div className="settings-field">
+            <span className="settings-field-label">To measure</span>
+            <Stepper
+              label="To measure"
+              display={
+                loop ? loopEdgeLabel(loop.endMeasure, loopNotes.end) : "–"
+              }
+              disabled={!loop}
+              canDecrement={!!loop && loop.endMeasure > 0}
+              canIncrement={!!loop && loop.endMeasure < measureCount - 1}
+              onDecrement={() => stepLoop("end", -1)}
+              onIncrement={() => stepLoop("end", 1)}
+            />
+          </div>
+        </div>
+        <div className="settings-subrow">
+          <p className="settings-help">Or drag the handles on the score</p>
+          <Switch
+            layout="inline"
+            label="Follow repeats"
+            checked={followRepeats}
+            disabled={!loop}
+            onChange={onFollowRepeatsChange}
+            title="Play the loop through its repeat signs and endings, as the music is performed"
+          />
+        </div>
+        {loopEndings && (
+          <p className="settings-hint" role="note">
+            Measures {loopEndings.first + 1}–{loopEndings.last + 1} are
+            alternate endings, so this loop plays them back to back. Turn on
+            Follow repeats to hear them as written.
+          </p>
+        )}
+      </section>
+
+      <section className="settings-section">
+        <div className="settings-section-header">
+          <h3 className="settings-section-title">
+            <MetronomeIcon />
+            Speed
+          </h3>
+          {bpm !== null && (
+            <span className="settings-section-aside">
+              ♩ = {Math.round(bpm * speed)}
+              {speedPercent !== 100 && ` at ${speedPercent}%`}
+            </span>
+          )}
+        </div>
+        <div className="settings-fields">
+          <div className="settings-field">
+            <Stepper
+              label="Speed"
+              size="lg"
+              display={speedLabel(speed)}
+              canDecrement={speed > SPEED_MIN + 1e-6}
+              canIncrement={speed < SPEED_MAX - 1e-6}
+              onDecrement={() => changeSpeed(speed - SPEED_STEP)}
+              onIncrement={() => changeSpeed(speed + SPEED_STEP)}
+            />
+          </div>
+          <div
+            className="settings-presets"
+            role="group"
+            aria-label="Speed presets"
+          >
+            {SPEED_PRESETS.map((v) => (
+              <button
+                key={v}
+                type="button"
+                className={`settings-preset${Math.abs(speed - v) < 1e-6 ? " selected" : ""}`}
+                aria-pressed={Math.abs(speed - v) < 1e-6}
+                onClick={() => changeSpeed(v)}
+              >
+                {Math.round(v * 100)}
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+    </>
+  );
+
+  const display = (
+    <>
+      <SettingsGroup title="Keyboard">
+        <Switch
+          label="Show all 88 keys"
+          description="Off zooms to the range this piece uses"
+          checked={fullKeyboard}
+          onChange={onFullKeyboardChange}
+        />
+        <Switch
+          label="Note names on keys"
+          checked={keyLabels}
+          onChange={onKeyLabelsChange}
+        />
+        <Switch
+          label="Keyboard sound"
+          description="Play piano audio when you press a key"
+          checked={sound}
+          onChange={onSoundChange}
+        />
+      </SettingsGroup>
+      <SettingsGroup title="Score">
+        <Switch
+          label="Dark score"
+          description="Light notes on a dark page"
+          checked={darkScore}
+          onChange={onDarkScoreChange}
+        />
+      </SettingsGroup>
+      {narrow && (
+        <SettingsGroup title="View">
+          <div className="settings-list-row" role="group" aria-label="View">
+            <ViewToggle view={view} onChange={onViewChange} labeled />
+          </div>
+        </SettingsGroup>
+      )}
+    </>
+  );
 
   return (
     <header className="toolbar">
@@ -166,173 +334,52 @@ export function Toolbar({
         <ChevronLeftIcon />
       </Button>
       <span className="toolbar-measure" role="status">
-        {canPlay
-          ? `Measure ${currentMeasure + 1}/${measureCount}${loopLabel}`
-          : "Loading score…"}
+        {canPlay ? (
+          <>
+            <span className="measure">Measure</span>{" "}
+            <strong>{currentMeasure + 1}</strong> / {measureCount}
+          </>
+        ) : (
+          "Loading score…"
+        )}
       </span>
+      {activeSettings.length > 0 && (
+        <button
+          type="button"
+          className="toolbar-chip"
+          onClick={() => openDrawer("practice")}
+          aria-label={`Practice settings: ${[
+            loop && `loop ${loopRangeLabel(loop, loopNotes)}`,
+            speedPercent !== 100 && `speed ${speedLabel(speed)}`,
+          ]
+            .filter(Boolean)
+            .join(", ")}`}
+          title="Loop and speed"
+        >
+          {loop && <LoopIcon size={18} />}
+          {activeSettings.map((s, i) => (
+            <span key={s} className="toolbar-chip-part">
+              {i > 0 && (
+                <span className="toolbar-chip-divider" aria-hidden="true" />
+              )}
+              {s}
+            </span>
+          ))}
+        </button>
+      )}
 
       <div className="toolbar-actions">
-        <SettingsMenu>
-          {loop && (
-            <div className="settings-row">
-              <Button onClick={() => onLoopChange(null)}>Clear</Button>
-            </div>
-          )}
-
-          <div className="settings-row">
-            <label>
-              Loop
-              <select
-                value={loop ? loop.startMeasure : ""}
-                onChange={(e) => {
-                  // "off" has an empty value, which Number() would turn into measure 1.
-                  if (e.target.value === "") return onLoopChange(null);
-                  // A measure picked here starts on its first note; the
-                  // end keeps its note unless it has to move.
-                  const start = Number(e.target.value);
-                  const end = Math.max(start, loop?.endMeasure ?? start);
-                  onLoopChange({
-                    startMeasure: start,
-                    endMeasure: end,
-                    endTimestamp:
-                      end === loop?.endMeasure ? loop.endTimestamp : undefined,
-                  });
-                }}
-              >
-                <option value="">off</option>
-                {measureOptions.map((i) => (
-                  <option key={i} value={i}>
-                    m. {i + 1}
-                  </option>
-                ))}
-              </select>
-              →
-              <select
-                value={loop ? loop.endMeasure : ""}
-                disabled={!loop}
-                onChange={(e) =>
-                  loop &&
-                  onLoopChange({
-                    ...loop,
-                    endMeasure: Math.max(
-                      loop.startMeasure,
-                      Number(e.target.value),
-                    ),
-                    endTimestamp: undefined,
-                  })
-                }
-              >
-                <option value="">—</option>
-                {measureOptions.map((i) => (
-                  <option key={i} value={i}>
-                    m. {i + 1}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-          {(loopNotes.start !== null || loopNotes.end !== null) && (
-            <p className="loop-note">
-              {[
-                loopNotes.start !== null && `Starts on note ${loopNotes.start}`,
-                loopNotes.end !== null && `ends on note ${loopNotes.end}`,
-              ]
-                .filter(Boolean)
-                .join(" · ")
-                .replace(/^e/, "E")}
-            </p>
-          )}
-          <div className="settings-row">
-            <Button
-              onClick={() => setLoopFromHere("start")}
-              disabled={!cursorNote}
-              title="Start the loop on the note under the cursor"
-            >
-              Start here
-            </Button>
-            <Button
-              onClick={() => setLoopFromHere("end")}
-              disabled={!cursorNote}
-              title="End the loop on the note under the cursor"
-            >
-              End here
-            </Button>
-          </div>
-          <div className="settings-row">
-            <label title="Play the loop through its repeat signs and endings, as the music is performed">
-              <input
-                type="checkbox"
-                checked={followRepeats}
-                disabled={!loop}
-                onChange={(e) => onFollowRepeatsChange(e.target.checked)}
-              />
-              Follow repeats
-            </label>
-          </div>
-          {loopEndings && (
-            <p className="settings-hint" role="note">
-              Measures {loopEndings.first + 1}–{loopEndings.last + 1} are
-              alternate endings, so this loop plays them back to back. Turn on
-              Follow repeats to hear them as written.
-            </p>
-          )}
-
-          <div className="settings-row">
-            <label>
-              Speed
-              <select
-                value={speed}
-                onChange={(e) => onSpeedChange(Number(e.target.value))}
-              >
-                {[0.5, 0.75, 1, 1.25].map((v) => (
-                  <option key={v} value={v}>
-                    {v * 100}%
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-
-          <div className="settings-row">
-            <label>
-              <input
-                type="checkbox"
-                checked={fullKeyboard}
-                onChange={(e) => onFullKeyboardChange(e.target.checked)}
-              />
-              88 keys
-            </label>
-            <label title="Play a sound when you tap the on-screen keyboard">
-              <input
-                type="checkbox"
-                checked={sound}
-                onChange={(e) => onSoundChange(e.target.checked)}
-              />
-              Keyboard Sound
-            </label>
-            <label title="Show the names of the notes to play above the on-screen keys">
-              <input
-                type="checkbox"
-                checked={keyLabels}
-                onChange={(e) => onKeyLabelsChange(e.target.checked)}
-              />
-              Note names
-            </label>
-            <label title="Draw the sheet music light on a dark background">
-              <input
-                type="checkbox"
-                checked={darkScore}
-                onChange={(e) => onDarkScoreChange(e.target.checked)}
-              />
-              Dark score
-            </label>
-          </div>
-          {narrow && (
-            <div className="settings-row" role="group" aria-label="View">
-              <ViewToggle view={view} onChange={onViewChange} labeled />
-            </div>
-          )}
-        </SettingsMenu>
+        <Button
+          icon
+          active={drawerOpen}
+          onClick={() => openDrawer()}
+          aria-label="Settings"
+          aria-expanded={drawerOpen}
+          aria-haspopup="dialog"
+          title="Settings"
+        >
+          <SlidersIcon />
+        </Button>
         {!narrow && <ViewToggle view={view} onChange={onViewChange} />}
         <Button
           className="hand-button hand-L"
@@ -356,6 +403,7 @@ export function Toolbar({
         >
           R
         </Button>
+        <span className="toolbar-divider" aria-hidden="true" />
         <Button
           icon
           onClick={onRestart}
@@ -370,6 +418,7 @@ export function Toolbar({
           disabled={!canPlay}
           aria-label="Previous note"
           title="Previous note (←)"
+          className="prev-note"
         >
           <ChevronLeftIcon />
         </Button>
@@ -379,11 +428,13 @@ export function Toolbar({
           disabled={!canPlay}
           aria-label="Next note"
           title="Next note (→)"
+          className="next-note"
         >
           <ChevronRightIcon />
         </Button>
         <Button
           icon
+          className="play-button"
           active={playing}
           onClick={onTogglePlayback}
           disabled={!canPlay}
@@ -393,6 +444,15 @@ export function Toolbar({
           {playing ? <StopIcon /> : <PlayIcon />}
         </Button>
       </div>
+
+      <SettingsDrawer
+        open={drawerOpen}
+        tab={tab}
+        onTabChange={setTab}
+        onClose={closeDrawer}
+        practice={practice}
+        display={display}
+      />
     </header>
   );
 }

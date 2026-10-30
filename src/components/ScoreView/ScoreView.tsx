@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type PointerEvent } from "react";
 import {
   OpenSheetMusicDisplay,
   PointF2D,
@@ -7,7 +7,11 @@ import {
 import { buildSteps } from "../../score/buildSteps";
 import { createSmoothScroller, type SmoothScroller } from "./smoothScroller";
 import type { EndingSet, LoopRange, Step } from "../../engine/types";
+import { LoopIcon } from "../Icons/LoopIcon";
 import "./ScoreView.css";
+
+/** Which end of the loop a handle moves. */
+export type LoopEdge = "start" | "end";
 
 /** Where a click landed on the score. */
 export interface ScoreClick {
@@ -36,10 +40,16 @@ interface ScoreViewProps {
   dark?: boolean;
   /** The loop to shade on the score, or null for none. */
   loop?: LoopRange | null;
+  /** What the pill over the loop says, e.g. "Loop 2–4". */
+  loopLabel?: string;
   onReady: (info: ScoreInfo) => void;
-  /** Called with the source measure index when the user clicks a measure. */
   /** Called when the user clicks the score, with the measure and note clicked. */
   onScoreClick?: (target: ScoreClick) => void;
+  /**
+   * Called while a loop handle is dragged, with the note under the pointer.
+   * Without it the handles are not shown.
+   */
+  onLoopDrag?: (edge: LoopEdge, target: ScoreClick) => void;
   onError?: (message: string) => void;
 }
 
@@ -48,8 +58,10 @@ export function ScoreView({
   cursorStep,
   dark = false,
   loop = null,
+  loopLabel,
   onReady,
   onScoreClick,
+  onLoopDrag,
   onError,
 }: ScoreViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -61,6 +73,9 @@ export function ScoreView({
   onReadyRef.current = onReady;
   const onScoreClickRef = useRef(onScoreClick);
   onScoreClickRef.current = onScoreClick;
+  const onLoopDragRef = useRef(onLoopDrag);
+  onLoopDragRef.current = onLoopDrag;
+  const [dragging, setDragging] = useState<LoopEdge | null>(null);
   const onErrorRef = useRef(onError);
   onErrorRef.current = onError;
   const cursorStepRef = useRef(cursorStep);
@@ -202,6 +217,47 @@ export function ScoreView({
     if (target) onScoreClickRef.current(target);
   };
 
+  // Dragging a loop handle moves that end of the loop onto the note under the
+  // pointer. The pointer is captured, so the drag survives leaving the handle,
+  // and a finger that drifts off the staves keeps the row it started on.
+  const startHandleDrag =
+    (edge: LoopEdge) => (e: PointerEvent<HTMLDivElement>) => {
+      const osmd = osmdRef.current;
+      if (!osmd || !readyRef.current || !onLoopDragRef.current) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const handle = e.currentTarget;
+      handle.setPointerCapture(e.pointerId);
+      const box = handle.getBoundingClientRect();
+      const rowY = box.top + box.height / 2;
+      let last: ScoreClick | null = null;
+      const move = (ev: globalThis.PointerEvent) => {
+        const target =
+          clickTarget(osmd, ev.clientX, ev.clientY) ??
+          clickTarget(osmd, ev.clientX, rowY);
+        if (!target) return;
+        if (
+          last &&
+          last.measure === target.measure &&
+          last.timestamp === target.timestamp
+        ) {
+          return;
+        }
+        last = target;
+        onLoopDragRef.current?.(edge, target);
+      };
+      const end = () => {
+        handle.removeEventListener("pointermove", move);
+        handle.removeEventListener("pointerup", end);
+        handle.removeEventListener("pointercancel", end);
+        setDragging(null);
+      };
+      handle.addEventListener("pointermove", move);
+      handle.addEventListener("pointerup", end);
+      handle.addEventListener("pointercancel", end);
+      setDragging(edge);
+    };
+
   // Redraw in the new colors when the dark score setting changes. The parent's
   // class has already switched, so --score-text holds the new color.
   // render() keeps the cursor where it was.
@@ -279,13 +335,21 @@ export function ScoreView({
     syncCursor();
   }, [cursorStep]);
 
+  const startBand = loopBands.find((b) => b.start);
+  const endBand = loopBands.find((b) => b.end);
+  const handles = onLoopDrag && startBand && endBand;
+
   return (
     <>
       {/* Before the score so the notes paint over the shading. */}
-      <div ref={loopLayerRef} className="score-loop" aria-hidden="true">
+      <div
+        ref={loopLayerRef}
+        className={`score-loop${dragging ? " dragging" : ""}`}
+      >
         {loopBands.map((b, i) => (
           <div
             key={i}
+            aria-hidden="true"
             className={`score-loop-band${b.start ? " start" : ""}${b.end ? " end" : ""}`}
             style={{
               left: b.left,
@@ -295,11 +359,58 @@ export function ScoreView({
             }}
           />
         ))}
+        {startBand && loopLabel && (
+          <div
+            className="score-loop-pill"
+            aria-hidden="true"
+            style={{
+              // In the first system the pill clears the floating song info.
+              left:
+                startBand.top < LOOP_PILL_CLEAR_BELOW
+                  ? Math.max(startBand.left, LOOP_PILL_CLEAR_LEFT)
+                  : startBand.left,
+              // Above the band, or just inside it when the band touches the top.
+              top: Math.max(4, startBand.top - LOOP_PILL_HEIGHT - 4),
+            }}
+          >
+            <LoopIcon size={16} />
+            {loopLabel}
+          </div>
+        )}
+        {handles &&
+          (["start", "end"] as const).map((edge) => {
+            const band = edge === "start" ? startBand : endBand;
+            return (
+              <div
+                key={edge}
+                role="slider"
+                tabIndex={-1}
+                aria-label={edge === "start" ? "Loop start" : "Loop end"}
+                aria-valuetext={loopLabel}
+                className={`score-loop-handle ${edge}${dragging === edge ? " active" : ""}`}
+                style={{
+                  left: edge === "start" ? band.left : band.left + band.width,
+                  top: band.top + band.height / 2,
+                }}
+                onPointerDown={startHandleDrag(edge)}
+              />
+            );
+          })}
       </div>
       <div ref={containerRef} className="score" onClick={handleClick} />
     </>
   );
 }
+
+/** Height of the "Loop 2–4" pill in px, matching .score-loop-pill. */
+const LOOP_PILL_HEIGHT = 28;
+/**
+ * A loop starting in the first system (its band's top above this, in px)
+ * would put the pill under the floating song info and tempo; it starts no
+ * further left than this instead.
+ */
+const LOOP_PILL_CLEAR_BELOW = 60;
+const LOOP_PILL_CLEAR_LEFT = 200;
 
 /**
  * Screens that get the single horizontal line instead of wrapped systems:
@@ -309,9 +420,16 @@ const HORIZONTAL_QUERY =
   "(pointer: coarse) and (orientation: landscape) and (max-height: 600px)";
 
 /**
+ * Room kept above the single horizontal line, in px, for the loop pill and the
+ * floating song info, which would otherwise sit on the top staff.
+ */
+const HORIZONTAL_HEADROOM = 30;
+
+/**
  * In the horizontal layout, zooms the score so its single line fills the
- * score area's height exactly, with no vertical scrolling. In the page layout
- * it restores the default zoom. Returns whether it re-rendered.
+ * score area's height exactly (less some headroom), with no vertical
+ * scrolling. In the page layout it restores the default zoom. Returns whether
+ * it re-rendered.
  */
 function fitToHeight(
   osmd: OpenSheetMusicDisplay,
@@ -321,10 +439,13 @@ function fitToHeight(
   const svg = el?.querySelector("svg");
   if (!area || !svg) return false;
   let zoom = 1;
-  if (osmd.EngravingRules.RenderSingleHorizontalStaffline) {
+  const horizontal = osmd.EngravingRules.RenderSingleHorizontalStaffline;
+  el.style.paddingTop = horizontal ? `${HORIZONTAL_HEADROOM}px` : "";
+  if (horizontal) {
     const height = svg.getBoundingClientRect().height;
-    if (!height || !area.clientHeight) return false;
-    zoom = (osmd.Zoom * area.clientHeight) / height;
+    const room = area.clientHeight - HORIZONTAL_HEADROOM;
+    if (!height || room <= 0) return false;
+    zoom = (osmd.Zoom * room) / height;
   }
   // Skip tiny changes so a refit doesn't trigger another one.
   if (Math.abs(zoom - osmd.Zoom) < 0.01) return false;

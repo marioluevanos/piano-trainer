@@ -89,7 +89,7 @@
 
 .song-dialog-fields input {
   font: inherit;
-  font-size: 15px;
+  font-size: 14px;
   min-height: 36px;
   padding: 0 10px;
   color: var(--text);

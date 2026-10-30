@@ -50,7 +50,7 @@
   /* The on-screen keyboard never grows taller than this. */
   --keyboard-max-height: 32vh;
   /* The training page's fixed bottom toolbar. */
-  --toolbar-height: 40px;
+  --toolbar-height: 52px;
   font-family:
     system-ui,
     -apple-system,

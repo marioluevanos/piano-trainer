@@ -27,7 +27,7 @@
 
 .scan-field select {
   font: inherit;
-  font-size: 15px;
+  font-size: 14px;
   min-height: 36px;
   padding: 0 10px;
   color: var(--text);
@@ -46,7 +46,7 @@
   gap: 10px;
   align-items: flex-start;
   padding: 6px 0;
-  font-size: 15px;
+  font-size: 14px;
   color: var(--text);
   cursor: pointer;
 }

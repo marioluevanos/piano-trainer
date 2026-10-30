@@ -5,12 +5,13 @@ import { NoteRoll } from "../../components/NoteRoll/NoteRoll";
 import { PianoStage } from "../../components/PianoStage/PianoStage";
 import {
   ScoreView,
+  type LoopEdge,
   type ScoreClick,
   type ScoreInfo,
 } from "../../components/ScoreView/ScoreView";
 import { SongInfo } from "../../components/SongInfo/SongInfo";
 import { Status } from "../../components/Status/Status";
-import { Toolbar, type CursorNote } from "../../components/Toolbar/Toolbar";
+import { Toolbar, loopRangeLabel } from "../../components/Toolbar/Toolbar";
 import { parseTrainingView } from "../../components/Toolbar/ViewToggle";
 import {
   expectedMidi,
@@ -20,6 +21,7 @@ import {
   loopStartIndex,
   loopSteps,
   measureNoteTimes,
+  moveLoopEdge,
   noteOff as engineNoteOff,
   noteOn as engineNoteOn,
   stepBy,
@@ -244,17 +246,11 @@ export function TrainingPage({
 
   const currentMeasure = currentStep ? currentStep.measure : 0;
 
-  // The note under the cursor, for "Start here" and "End here".
-  const cursorNote = useMemo<CursorNote | null>(() => {
-    if (!currentStep) return null;
-    const times = measureNoteTimes(steps, currentStep.measure);
-    return {
-      measure: currentStep.measure,
-      timestamp: currentStep.timestamp,
-      first: currentStep.timestamp <= times[0] + 1e-6,
-      last: currentStep.timestamp >= times[times.length - 1] - 1e-6,
-    };
-  }, [steps, currentStep]);
+  // Dragging a handle on the score moves that end of the loop onto a note.
+  const dragLoopEdge = (edge: LoopEdge, target: ScoreClick) =>
+    setLoopRange((current) =>
+      moveLoopEdge(steps, current, edge, target, measureCount),
+    );
 
   // Note numbers for a loop that starts or ends mid-measure, for its labels.
   const loopNotes = useMemo(() => {
@@ -270,6 +266,10 @@ export function TrainingPage({
       end: loop ? noteNumber(loop.endMeasure, loop.endTimestamp) : null,
     };
   }, [steps, loop]);
+  const loopLabel = loop
+    ? `Loop ${loopRangeLabel(loop, loopNotes)}`
+    : undefined;
+
   const restart = () => {
     playback.stop();
     setEngine(
@@ -346,7 +346,13 @@ export function TrainingPage({
 
   return (
     <div className="training-page">
-      <SongInfo credits={credits} dark={darkScore} />
+      <SongInfo
+        credits={credits}
+        dark={darkScore}
+        bpm={currentStep?.bpm ?? null}
+        speed={speed}
+        playing={playback.playing}
+      />
       {/* Hidden rather than unmounted when not shown: rendering the score is what produces the steps. */}
       <section
         className={darkScore ? "score-area score-dark" : "score-area"}
@@ -361,8 +367,10 @@ export function TrainingPage({
             dark={darkScore}
             cursorStep={engine.stepIndex}
             loop={loop}
+            loopLabel={loopLabel}
             onReady={handleReady}
             onScoreClick={seekTo}
+            onLoopDrag={dragLoopEdge}
             onError={setScoreError}
           />
         ) : (
@@ -404,10 +412,10 @@ export function TrainingPage({
           canPlay={steps.length > 0}
           handMode={handMode}
           loop={loop}
-          cursorNote={cursorNote}
           loopNotes={loopNotes}
           currentMeasure={currentMeasure}
           measureCount={measureCount}
+          bpm={currentStep?.bpm ?? null}
           speed={speed}
           fullKeyboard={fullKeyboard}
           sound={onScreenSound}

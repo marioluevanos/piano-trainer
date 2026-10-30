@@ -8,8 +8,10 @@ import {
   loopStartIndex,
   loopSteps,
   measureNoteTimes,
+  moveLoopEdge,
   noteOff,
   noteOn,
+  setLoopMeasure,
   stepBy,
   sustainedNotes,
 } from "./practiceEngine.ts";
@@ -130,9 +132,18 @@ test("loop plays its measures in printed order, ignoring repeats", () => {
     bpm: 120,
     notes: [{ midi: 60 + measure, hand: "R", duration: 0.5 }],
   }));
-  assert.deepEqual(loopSteps(volta, { startMeasure: 0, endMeasure: 3 }), [0, 1, 3, 4]);
-  assert.deepEqual(loopSteps(volta, { startMeasure: 1, endMeasure: 2 }), [1, 3]);
-  const opts = { handMode: "both" as const, loop: { startMeasure: 0, endMeasure: 3 } };
+  assert.deepEqual(
+    loopSteps(volta, { startMeasure: 0, endMeasure: 3 }),
+    [0, 1, 3, 4],
+  );
+  assert.deepEqual(
+    loopSteps(volta, { startMeasure: 1, endMeasure: 2 }),
+    [1, 3],
+  );
+  const opts = {
+    handMode: "both" as const,
+    loop: { startMeasure: 0, endMeasure: 3 },
+  };
   let s = jumpTo(volta, loopStartIndex(volta, opts.loop), opts);
   const visited = [s.stepIndex];
   for (const m of [60, 61, 62, 63]) {
@@ -177,7 +188,10 @@ test("endingsInLoop finds alternate endings played back to back", () => {
     first: 4,
     last: 5,
   });
-  assert.equal(endingsInLoop(endings, { startMeasure: 0, endMeasure: 3 }), null);
+  assert.equal(
+    endingsInLoop(endings, { startMeasure: 0, endMeasure: 3 }),
+    null,
+  );
   assert.equal(endingsInLoop([], { startMeasure: 0, endMeasure: 6 }), null);
 });
 
@@ -217,7 +231,10 @@ test("stepBy nudges the cursor one playable note at a time", () => {
 });
 
 test("stepBy wraps around a loop", () => {
-  const opts = { handMode: "both" as const, loop: { startMeasure: 0, endMeasure: 0 } };
+  const opts = {
+    handMode: "both" as const,
+    loop: { startMeasure: 0, endMeasure: 0 },
+  };
   assert.equal(stepBy(steps, 1, 1, opts), 0);
   assert.equal(stepBy(steps, 0, -1, opts), 1);
 });
@@ -225,14 +242,23 @@ test("stepBy wraps around a loop", () => {
 test("a loop can start and end on a note inside a measure", () => {
   const both = { handMode: "both" as const };
   // From m0's second note through m1's first note.
-  const loop = { startMeasure: 0, endMeasure: 1, startTimestamp: 0.25, endTimestamp: 0.5 };
+  const loop = {
+    startMeasure: 0,
+    endMeasure: 1,
+    startTimestamp: 0.25,
+    endTimestamp: 0.5,
+  };
   assert.deepEqual(loopSteps(steps, loop), [1, 2]);
   assert.equal(loopStartIndex(steps, loop), 1);
   let s = jumpTo(steps, 1, { ...both, loop });
   s = noteOn(s, steps, 64, { ...both, loop });
   s = noteOn(s, steps, 67, { ...both, loop });
   s = noteOn(s, steps, 55, { ...both, loop });
-  assert.equal(s.stepIndex, 1, "wrapped to the start note, not the measure's first");
+  assert.equal(
+    s.stepIndex,
+    1,
+    "wrapped to the start note, not the measure's first",
+  );
   // Following repeats trims the same way.
   assert.deepEqual(loopSteps(steps, { ...loop, followRepeats: true }), [1, 2]);
 });
@@ -240,6 +266,102 @@ test("a loop can start and end on a note inside a measure", () => {
 test("measureNoteTimes lists a measure's notes, skipping rests", () => {
   assert.deepEqual(measureNoteTimes(steps, 0), [0, 0.25]);
   assert.deepEqual(measureNoteTimes(steps, 1), [0.5]);
+});
+
+test("moveLoopEdge sets an edge on a note, whole measures on the first and last note", () => {
+  // The measure's second note starts mid-measure.
+  assert.deepEqual(
+    moveLoopEdge(steps, null, "start", { measure: 0, timestamp: 0.25 }, 2),
+    { startMeasure: 0, startTimestamp: 0.25, endMeasure: 1 },
+  );
+  // Its first note takes the whole measure.
+  assert.deepEqual(
+    moveLoopEdge(steps, null, "start", { measure: 0, timestamp: 0 }, 2),
+    { startMeasure: 0, startTimestamp: undefined, endMeasure: 1 },
+  );
+  // An end on the measure's last note takes the whole measure too.
+  const loop = { startMeasure: 0, endMeasure: 1 };
+  assert.deepEqual(
+    moveLoopEdge(steps, loop, "end", { measure: 0, timestamp: 0.25 }, 2),
+    { startMeasure: 0, endMeasure: 0, endTimestamp: undefined },
+  );
+  // An end on the first of two notes ends mid-measure.
+  assert.deepEqual(
+    moveLoopEdge(steps, loop, "end", { measure: 0, timestamp: 0 }, 2),
+    { startMeasure: 0, endMeasure: 0, endTimestamp: 0 },
+  );
+});
+
+test("moveLoopEdge drags the other edge along so the loop never runs backward", () => {
+  const loop = { startMeasure: 0, endMeasure: 0, endTimestamp: 0 };
+  // A start past a mid-measure end moves the end to the whole measure.
+  assert.deepEqual(
+    moveLoopEdge(steps, loop, "start", { measure: 0, timestamp: 0.25 }, 2),
+    {
+      startMeasure: 0,
+      startTimestamp: 0.25,
+      endMeasure: 0,
+      endTimestamp: undefined,
+    },
+  );
+  // An end before the start moves the start to the whole measure.
+  assert.deepEqual(
+    moveLoopEdge(
+      steps,
+      { startMeasure: 1, endMeasure: 1 },
+      "end",
+      { measure: 0, timestamp: null },
+      2,
+    ),
+    {
+      startMeasure: 0,
+      startTimestamp: undefined,
+      endMeasure: 0,
+      endTimestamp: undefined,
+    },
+  );
+});
+
+test("setLoopMeasure takes whole measures, clamps and pushes the other edge", () => {
+  const loop = {
+    startMeasure: 0,
+    startTimestamp: 0.25,
+    endMeasure: 1,
+    endTimestamp: 0.5,
+  };
+  assert.deepEqual(setLoopMeasure(loop, "start", 1, 2), {
+    startMeasure: 1,
+    startTimestamp: undefined,
+    endMeasure: 1,
+    endTimestamp: 0.5,
+  });
+  // The start keeps its note: it still comes before the end of the measure.
+  assert.deepEqual(setLoopMeasure(loop, "end", 0, 2), {
+    startMeasure: 0,
+    startTimestamp: 0.25,
+    endMeasure: 0,
+    endTimestamp: undefined,
+  });
+  assert.deepEqual(setLoopMeasure(loop, "end", -3, 5), {
+    startMeasure: 0,
+    startTimestamp: 0.25,
+    endMeasure: 0,
+    endTimestamp: undefined,
+  });
+  assert.deepEqual(
+    setLoopMeasure({ startMeasure: 2, endMeasure: 3 }, "end", 0, 5),
+    {
+      startMeasure: 0,
+      startTimestamp: undefined,
+      endMeasure: 0,
+      endTimestamp: undefined,
+    },
+  );
+  assert.deepEqual(setLoopMeasure(loop, "end", 9, 2), {
+    ...loop,
+    endMeasure: 1,
+    endTimestamp: undefined,
+  });
 });
 
 test("a tied note stays sustained until its tie ends, within one pass", () => {

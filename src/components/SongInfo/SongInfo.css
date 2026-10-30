@@ -8,7 +8,7 @@
   height: 0;
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  align-items: flex-start;
 
   /* The info button takes the sheet music's palette. */
   --text: var(--score-muted);
@@ -25,8 +25,38 @@
   }
 }
 
+.score-info-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .score-info-button {
   margin-top: 0;
+}
+
+/* "♩ = 140", in the score's own typeface, on the same translucent surface as
+   the info button so it reads over whatever the score prints up here. */
+.score-tempo {
+  padding: 1px 8px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--score-text);
+  white-space: nowrap;
+  background: var(--control-bg);
+  border-radius: 12px;
+}
+
+/* The speed the song is playing at, when it is not the written tempo. */
+.score-speed {
+  padding: 3px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--score-accent);
+  background: color-mix(in srgb, var(--score-accent) 12%, transparent);
+  border-radius: 12px;
 }
 
 .score-info-panel {

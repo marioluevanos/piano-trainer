@@ -185,6 +185,102 @@ export function measureNoteTimes(steps: Step[], measure: number): number[] {
   return [...times].sort((a, b) => a - b);
 }
 
+/** A note on the score, in the terms a loop edge is set in. */
+export interface LoopEdgeTarget {
+  /** 0-based measure index. */
+  measure: number;
+  /** Absolute timestamp (whole notes) of the note, or null for the whole measure. */
+  timestamp: number | null;
+}
+
+/**
+ * The loop with its start or end moved onto a note, e.g. dragged there on the
+ * score. On a measure's first (or last) note the loop takes the whole measure,
+ * so the edge has no note timestamp. When the moved edge would pass the other
+ * one, the other edge moves to the same whole measure so the loop never runs
+ * backward. Without a loop, the other edge starts at the score's edge.
+ */
+export function moveLoopEdge(
+  steps: Step[],
+  loop: LoopRange | null,
+  which: "start" | "end",
+  target: LoopEdgeTarget,
+  measureCount: number,
+): LoopRange {
+  const EPSILON = 1e-6;
+  const { measure } = target;
+  const times = measureNoteTimes(steps, measure);
+  let timestamp: number | undefined;
+  if (target.timestamp !== null && times.length > 0) {
+    const edge = which === "start" ? times[0] : times[times.length - 1];
+    if (Math.abs(target.timestamp - edge) > EPSILON)
+      timestamp = target.timestamp;
+  }
+  const next: LoopRange = {
+    ...(loop ?? { startMeasure: 0, endMeasure: Math.max(0, measureCount - 1) }),
+  };
+  if (which === "start") {
+    next.startMeasure = measure;
+    next.startTimestamp = timestamp;
+    const endsBefore =
+      next.endMeasure < measure ||
+      (next.endMeasure === measure &&
+        next.endTimestamp !== undefined &&
+        timestamp !== undefined &&
+        next.endTimestamp < timestamp);
+    if (endsBefore) {
+      next.endMeasure = measure;
+      next.endTimestamp = undefined;
+    }
+  } else {
+    next.endMeasure = measure;
+    next.endTimestamp = timestamp;
+    const startsAfter =
+      next.startMeasure > measure ||
+      (next.startMeasure === measure &&
+        next.startTimestamp !== undefined &&
+        timestamp !== undefined &&
+        next.startTimestamp > timestamp);
+    if (startsAfter) {
+      next.startMeasure = measure;
+      next.startTimestamp = undefined;
+    }
+  }
+  return next;
+}
+
+/**
+ * The loop with its start or end measure changed, e.g. from a stepper. The
+ * edge then takes the whole measure; the other edge is pushed along when the
+ * new one would pass it.
+ */
+export function setLoopMeasure(
+  loop: LoopRange,
+  which: "start" | "end",
+  measure: number,
+  measureCount: number,
+): LoopRange {
+  const m = Math.max(0, Math.min(measureCount - 1, measure));
+  if (which === "start") {
+    const pushed = m > loop.endMeasure;
+    return {
+      ...loop,
+      startMeasure: m,
+      startTimestamp: undefined,
+      endMeasure: pushed ? m : loop.endMeasure,
+      endTimestamp: pushed ? undefined : loop.endTimestamp,
+    };
+  }
+  const pushed = m < loop.startMeasure;
+  return {
+    ...loop,
+    endMeasure: m,
+    endTimestamp: undefined,
+    startMeasure: pushed ? m : loop.startMeasure,
+    startTimestamp: pushed ? undefined : loop.startTimestamp,
+  };
+}
+
 /**
  * The measures (first and last, 0-based) of the alternate endings a loop plays
  * back to back, or null when the loop holds at most one ending of each repeat.
