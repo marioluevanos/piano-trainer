@@ -1,62 +1,35 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import type { User } from "firebase/auth";
 import type { Song } from "../../songs";
 import { useCoverUrl } from "../../songs/cover";
 import {
-  canEditSong,
   readSongFile,
   type ImportedSong,
   type SongDetails,
 } from "../../songs/library";
-import {
-  SCAN_ACCEPT,
-  // canScan,
-  loadScanOptions,
-  describeScanProgress,
-  saveScanOptions,
-  scanSheetMusic,
-  type ScanOptions,
-  type ScanProgress,
-} from "../../songs/omr";
+import { SCAN_ACCEPT, loadScanOptions } from "../../songs/omr";
 import { downloadImported, downloadSong } from "../../songs/download";
-import {
-  clearPendingScan,
-  loadPendingScan,
-  savePendingScan,
-  type PendingScan,
-} from "../../songs/pendingScan";
+import { recentlyPlayed } from "../../songs/recent";
+import type { PendingScan } from "../../songs/pendingScan";
 import { Button } from "../../components/Button/Button";
 import { ScanDialog } from "../../components/ScanDialog/ScanDialog";
 import { SongDialog } from "../../components/SongDialog/SongDialog";
-import { SongMenu } from "../../components/SongMenu/SongMenu";
-import { GridIcon } from "../../components/Icons/GridIcon";
-import { ListIcon } from "../../components/Icons/ListIcon";
+import { HomeHeader } from "./HomeHeader";
+import {
+  LayoutToggle,
+  loadLayout,
+  saveLayout,
+  type Layout,
+} from "./LayoutToggle";
+import { SongSection } from "./SongSection";
+import { PendingScanNotice, ScanStatus } from "./ScanStatus";
+import { useScan } from "./useScan";
 import "./HomePage.css";
-
-type Layout = "list" | "grid";
-
-const LAYOUT_KEY = "piano-trainer.song-layout.v1";
-
-function loadLayout(): Layout {
-  try {
-    return localStorage.getItem(LAYOUT_KEY) === "grid" ? "grid" : "list";
-  } catch {
-    return "list";
-  }
-}
-
-function saveLayout(layout: Layout) {
-  try {
-    localStorage.setItem(LAYOUT_KEY, layout);
-  } catch {
-    // Not remembering the layout is harmless.
-  }
-}
 
 interface Props {
   songs: Song[];
-  /** The song opened last time, marked in the list. */
-  lastSongId: string | null;
+  /** The ids of the songs opened recently, newest first (see songs/recent.ts). */
+  recentIds: string[];
   loading: boolean;
   error: string | null;
   user: User | null;
@@ -68,71 +41,6 @@ interface Props {
   onRemove: (song: Song) => void;
   onSignIn: () => void;
   onSignOut: () => void;
-}
-
-/** Placeholder colors (cover-tone-N in HomePage.css) for songs without a cover. */
-const TONES = 6;
-
-function tone(id: string) {
-  let hash = 0;
-  for (const ch of id) hash = (hash * 31 + ch.charCodeAt(0)) | 0;
-  return Math.abs(hash) % TONES;
-}
-
-/**
- * A song's square cover, or a colored tile with its initial when it has none.
- * The tile also stands in while a cover loads; the image then fades in over
- * it, unless it was already loaded on the first render.
- */
-function SongCover({ song }: { song: Song }) {
-  const url = useCoverUrl(song);
-  const [instant] = useState(url !== null);
-  const [decoded, setDecoded] = useState(false);
-  return (
-    <span
-      className={`song-cover cover-tone-${tone(song.id)}`}
-      aria-hidden="true"
-    >
-      {!song.loadCover && song.title.trim().charAt(0).toUpperCase()}
-      {url && (
-        <img
-          className={instant || decoded ? "shown" : undefined}
-          src={url}
-          alt=""
-          width={48}
-          height={48}
-          decoding="async"
-          draggable={false}
-          onLoad={() => setDecoded(true)}
-        />
-      )}
-    </span>
-  );
-}
-
-/** Stand-ins for a song list while it loads, in the chosen layout. */
-function SongListSkeleton({
-  layout,
-  count,
-}: {
-  layout: Layout;
-  count: number;
-}) {
-  return (
-    <ul className={`song-list ${layout} skeleton`} aria-hidden="true">
-      {Array.from({ length: count }, (_, i) => (
-        <li key={i}>
-          <span className="song-open">
-            <span className="song-cover bone" />
-            <span className="song-text">
-              <span className="song-title bone">&nbsp;</span>
-              <span className="song-artist bone">&nbsp;</span>
-            </span>
-          </span>
-        </li>
-      ))}
-    </ul>
-  );
 }
 
 /** The edit dialog for a song, previewing its current cover. */
@@ -159,10 +67,10 @@ function EditSongDialog({
   );
 }
 
-/** The start screen: the song list, importing and removing songs, and the account. */
+/** The start screen: the song lists, importing and removing songs, and the account. */
 export function HomePage({
   songs,
-  lastSongId,
+  recentIds,
   loading,
   error,
   user,
@@ -175,10 +83,8 @@ export function HomePage({
 }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scanInputRef = useRef<HTMLInputElement>(null);
-  const [adding, setAdding] = useState<{
-    song: ImportedSong;
-    fileName: string;
-  } | null>(null);
+  /** A song read from a file (or scanned), waiting in the Add song dialog. */
+  const [adding, setAdding] = useState<PendingScan | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const editing = songs.find((s) => s.id === editingId);
   const [pickError, setPickError] = useState<string | null>(null);
@@ -187,6 +93,9 @@ export function HomePage({
     setLayout(next);
     saveLayout(next);
   };
+
+  const scan = useScan(user, { onScanned: setAdding, onError: setPickError });
+  const { scanning, pending } = scan;
 
   const onPickFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -200,62 +109,16 @@ export function HomePage({
     }
   };
 
-  /** The file being scanned into MusicXML, with a way to stop waiting for it. */
-  const [scanning, setScanning] = useState<{
-    name: string;
-    abort: AbortController;
-    progress: ScanProgress;
-  } | null>(null);
-  useEffect(() => () => scanning?.abort.abort(), [scanning]);
-  /** The last scan, kept (also across reloads) until it is saved or discarded. */
-  const [pending, setPending] = useState<PendingScan | null>(loadPendingScan);
-
-  const discardPending = () => {
-    clearPendingScan();
-    setPending(null);
+  const onPickScan = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (file) scan.pickFile(file);
   };
 
   /** Saves a song; a saved scan is no longer pending. */
   const add = async (song: ImportedSong, details: SongDetails) => {
     await onAdd(song, details);
-    if (pending?.song.id === song.id) discardPending();
-  };
-
-  /** A picked PDF or image waiting in the scan options dialog. */
-  const [scanFile, setScanFile] = useState<File | null>(null);
-
-  const onPickScan = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (file) setScanFile(file);
-  };
-
-  const startScan = async (file: File, options: ScanOptions) => {
-    setScanFile(null);
-    if (!user) return;
-    saveScanOptions(options);
-    const abort = new AbortController();
-    setScanning({ name: file.name, abort, progress: { value: 0 } });
-    setPickError(null);
-    try {
-      const mxl = await scanSheetMusic(
-        file,
-        user,
-        options,
-        abort.signal,
-        (progress) =>
-          setScanning((s) => (s && s.abort === abort ? { ...s, progress } : s)),
-      );
-      const scan = { song: await readSongFile(mxl), fileName: file.name };
-      savePendingScan(scan);
-      setPending(scan);
-      setAdding(scan);
-    } catch (err) {
-      if (!abort.signal.aborted)
-        setPickError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setScanning(null);
-    }
+    scan.saved(song.id);
   };
 
   /** Saves a score to the device, e.g. to correct a scan in MuseScore or Audiveris. */
@@ -274,71 +137,55 @@ export function HomePage({
 
   const shared = songs.filter((s) => !s.user);
   const own = songs.filter((s) => s.user);
+  /** The last song opened from each list, shown at the top. */
+  const recent = recentlyPlayed(recentIds, songs);
+  const showRecent = !loading && recent.length > 0;
+  /** The song opened last time, marked in the lists below. */
+  const lastSongId = recentIds[0] ?? null;
 
-  const list = (items: Song[]) => (
-    <ul className={`song-list ${layout}`}>
-      {items.map((s) => (
-        <li key={s.id} className={s.id === lastSongId ? "last" : undefined}>
-          <Button
-            variant="ghost"
-            className="song-open"
-            onClick={() => onOpen(s.id)}
-          >
-            <SongCover song={s} />
-            <span className="song-text">
-              <span className="song-title">{s.title}</span>
-              {s.artist && <span className="song-artist">{s.artist}</span>}
-              {s.id === lastSongId && (
-                <span className="song-badge">Last played</span>
-              )}
-            </span>
-          </Button>
-          {canEditSong(user, s) && (
-            <SongMenu
-              title={s.title}
-              variant={layout === "grid" ? "overlay" : "ghost"}
-              onEdit={() => setEditingId(s.id)}
-              onDownload={() => download(downloadSong(s))}
-              onRemove={() => remove(s)}
-            />
-          )}
-        </li>
-      ))}
-    </ul>
+  /** What every song list needs besides its songs. */
+  const listProps = {
+    layout,
+    user,
+    onOpen,
+    onEdit: (s: Song) => setEditingId(s.id),
+    onDownload: (s: Song) => download(downloadSong(s)),
+    onRemove: remove,
+  };
+
+  /** The layout toggle and Upload button, in the head of the first section. */
+  const tools = (
+    <>
+      <LayoutToggle layout={layout} onChange={chooseLayout} />
+      {/* {canScan(user) && (
+        <Button
+          onClick={() => scanInputRef.current?.click()}
+          disabled={scanning !== null}
+          title="Turn a PDF or photo of printed sheet music into a song"
+        >
+          Scan
+        </Button>
+      )} */}
+      {user && (
+        <Button
+          variant="primary"
+          onClick={() => fileInputRef.current?.click()}
+          title="Load a .musicxml, .xml or .mxl file"
+        >
+          Upload
+        </Button>
+      )}
+    </>
   );
 
   return (
     <div className="home">
-      <header className="home-header">
-        <h1 className="home-logo">
-          <img src={`${import.meta.env.BASE_URL}icon.svg`} alt="" />
-          <span className="visually-hidden">Piano Trainer</span>
-        </h1>
-        {!loading && (
-          <div className="home-account">
-            {user ? (
-              <>
-                <span className="account">
-                  {user.displayName ?? user.email}
-                </span>
-                <Button
-                  onClick={onSignOut}
-                  title="Your songs stay in your account"
-                >
-                  Sign out
-                </Button>
-              </>
-            ) : (
-              <Button
-                onClick={onSignIn}
-                title="Keep the songs you load in your Google account, on every device"
-              >
-                Sign in to sync songs
-              </Button>
-            )}
-          </div>
-        )}
-      </header>
+      <HomeHeader
+        user={user}
+        loading={loading}
+        onSignIn={onSignIn}
+        onSignOut={onSignOut}
+      />
 
       <main className="home-body">
         {(pickError ?? error) && (
@@ -349,141 +196,54 @@ export function HomePage({
             Loading songs…
           </p>
         )}
-        <section>
-          <div className="home-section-head">
-            <h2>Your songs</h2>
-            <div className="home-section-tools">
-              <div
-                className="layout-toggle"
-                role="group"
-                aria-label="Song layout"
-              >
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  icon
-                  active={layout === "list"}
-                  aria-pressed={layout === "list"}
-                  onClick={() => chooseLayout("list")}
-                  aria-label="List"
-                  title="Show songs as a list"
-                >
-                  <ListIcon size={18} />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  icon
-                  active={layout === "grid"}
-                  aria-pressed={layout === "grid"}
-                  onClick={() => chooseLayout("grid")}
-                  aria-label="Grid"
-                  title="Show songs as a grid of covers"
-                >
-                  <GridIcon size={18} />
-                </Button>
-              </div>
-              {/* {canScan(user) && (
-                <Button
-                  onClick={() => scanInputRef.current?.click()}
-                  disabled={scanning !== null}
-                  title="Turn a PDF or photo of printed sheet music into a song"
-                >
-                  Scan M
-                </Button>
-              )} */}
-              {user && (
-                <Button
-                  variant="primary"
-                  onClick={() => fileInputRef.current?.click()}
-                  title="Load a .musicxml, .xml or .mxl file"
-                >
-                  Upload
-                </Button>
-              )}
-            </div>
-          </div>
+        {showRecent && (
+          <SongSection
+            title="Recently played"
+            tools={tools}
+            songs={recent}
+            lastSongId={null}
+            {...listProps}
+          />
+        )}
+        <SongSection
+          title="Library"
+          tools={showRecent ? undefined : tools}
+          loading={loading}
+          skeletonCount={6}
+          songs={shared}
+          lastSongId={lastSongId}
+          placeholder="The library is empty."
+          {...listProps}
+        />
+        <SongSection
+          title="Your songs"
+          loading={loading}
+          skeletonCount={2}
+          songs={own}
+          lastSongId={lastSongId}
+          placeholder={
+            user
+              ? "Songs you load from a MusicXML file appear here."
+              : "Sign in to upload your own songs."
+          }
+          {...listProps}
+        >
           {pending && !scanning && !adding && (
-            <p className="home-notice" role="status">
-              <span>
-                Scanned <strong>{pending.fileName}</strong> is ready to add.
-              </span>
-              <Button
-                size="sm"
-                variant="primary"
-                onClick={() => setAdding(pending)}
-              >
-                Add song
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => download(downloadImported(pending.song))}
-                title="Save the scanned score to fix it in MuseScore or Audiveris"
-              >
-                Download
-              </Button>
-              <Button
-                size="sm"
-                onClick={discardPending}
-                title="Throw the scan away"
-              >
-                Discard
-              </Button>
-            </p>
+            <PendingScanNotice
+              scan={pending}
+              onAdd={() => setAdding(pending)}
+              onDownload={() => download(downloadImported(pending.song))}
+              onDiscard={scan.discardPending}
+            />
           )}
           {scanning && (
-            <div className="home-status" role="status">
-              <span className="home-status-text">
-                Scanning <strong>{scanning.name}</strong>
-                <small>{describeScanProgress(scanning.progress)}…</small>
-              </span>
-              <span className="home-status-percent">
-                {Math.round(scanning.progress.value * 100)}%
-              </span>
-              <Button size="sm" onClick={() => scanning.abort.abort()}>
-                Cancel
-              </Button>
-              <span
-                className="home-progress"
-                role="progressbar"
-                aria-label="Scan progress"
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-valuenow={Math.round(scanning.progress.value * 100)}
-              >
-                <span
-                  className="home-progress-fill"
-                  style={{
-                    width: `${Math.round(scanning.progress.value * 100)}%`,
-                  }}
-                />
-              </span>
-            </div>
+            <ScanStatus
+              name={scanning.name}
+              progress={scanning.progress}
+              onCancel={scanning.cancel}
+            />
           )}
-          {loading ? (
-            <SongListSkeleton layout={layout} count={2} />
-          ) : own.length ? (
-            list(own)
-          ) : (
-            <p className="home-placeholder">
-              {user
-                ? "Songs you load from a MusicXML file appear here."
-                : "Sign in to upload your own songs."}
-            </p>
-          )}
-        </section>
-        <section>
-          <div className="home-section-head">
-            <h2>Library</h2>
-          </div>
-          {loading ? (
-            <SongListSkeleton layout={layout} count={6} />
-          ) : shared.length ? (
-            list(shared)
-          ) : (
-            <p className="home-placeholder">The library is empty.</p>
-          )}
-        </section>
+        </SongSection>
         <p className="build-info">Build {__BUILD_TIME__}</p>
       </main>
 
@@ -501,12 +261,12 @@ export function HomePage({
         hidden
         onChange={onPickScan}
       />
-      {scanFile && (
+      {scan.scanFile && (
         <ScanDialog
-          fileName={scanFile.name}
+          fileName={scan.scanFile.name}
           initialOptions={loadScanOptions()}
-          onScan={(options) => startScan(scanFile, options)}
-          onClose={() => setScanFile(null)}
+          onScan={scan.start}
+          onClose={scan.closeOptions}
         />
       )}
       {adding && (

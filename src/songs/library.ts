@@ -27,8 +27,6 @@ import {
   userDoc,
 } from "./paths";
 
-const SELECTED_KEY = "piano-trainer.selected-song.v1";
-
 /**
  * Google accounts that may edit or remove shared library songs from the app,
  * just like their own. Must match `libraryEditor()` in firestore.rules, which
@@ -44,23 +42,6 @@ export function canEditLibrary(user: User | null): boolean {
 /** Whether this user may edit or remove the song. */
 export function canEditSong(user: User | null, song: Song): boolean {
   return song.user ? user !== null : canEditLibrary(user);
-}
-
-/** The id of the song selected last time, if any. */
-export function loadSelectedSongId(): string | null {
-  try {
-    return localStorage.getItem(SELECTED_KEY);
-  } catch {
-    return null;
-  }
-}
-
-export function saveSelectedSongId(id: string) {
-  try {
-    localStorage.setItem(SELECTED_KEY, id);
-  } catch {
-    // Not remembering the selection is harmless.
-  }
 }
 
 /* ---------- Importing ---------- */

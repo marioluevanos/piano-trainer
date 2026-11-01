@@ -3,25 +3,29 @@ import { HomePage } from "./pages/HomePage/HomePage";
 import { TrainingPage } from "./pages/TrainingPage/TrainingPage";
 import { loadPiano } from "./midi/synth";
 import {
-  loadSelectedSongId,
-  saveSelectedSongId,
   useSongLibrary,
   type ImportedSong,
   type SongDetails,
 } from "./songs/library";
+import {
+  loadRecentSongIds,
+  saveRecentSongIds,
+  withRecentSong,
+} from "./songs/recent";
 import { useNavigation } from "./navigation/useNavigation";
 
 export default function App() {
   const library = useSongLibrary();
   const { route, openSong, goHome } = useNavigation();
 
-  // The song being trained on, or on the home page the one trained on last.
-  const [songId, setSongId] = useState(loadSelectedSongId);
+  // The songs trained on, newest first; the one being trained on leads.
+  const [recentIds, setRecentIds] = useState(loadRecentSongIds);
   const routeSongId = route.page === "training" ? route.songId : null;
-  if (routeSongId && routeSongId !== songId) setSongId(routeSongId);
+  if (routeSongId && routeSongId !== recentIds[0])
+    setRecentIds(withRecentSong(recentIds, routeSongId));
   useEffect(() => {
-    if (songId) saveSelectedSongId(songId);
-  }, [songId]);
+    if (recentIds.length) saveRecentSongIds(recentIds);
+  }, [recentIds]);
 
   // Fetch the piano samples up front so the first note does not fall back to the plain tone.
   useEffect(() => {
@@ -38,7 +42,7 @@ export default function App() {
       return (
         <HomePage
           songs={library.songs}
-          lastSongId={songId}
+          recentIds={recentIds}
           loading={library.loading}
           error={library.error}
           user={library.user}

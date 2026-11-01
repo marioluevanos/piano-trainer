@@ -1,0 +1,247 @@
+/* One column in portrait; as many as fit when the screen is wide. */
+.song-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.song-list li {
+  display: flex;
+  min-width: 0;
+  background: var(--panel);
+  border: 1px solid transparent;
+  border-radius: 8px;
+}
+
+.song-list li.last {
+  border-color: var(--accent);
+}
+
+.song-open {
+  flex: 1;
+  display: flex;
+  justify-content: flex-start;
+  gap: 12px;
+  min-width: 0;
+  min-height: 48px;
+  padding: 4px;
+  text-align: left;
+  border: none;
+  border-radius: 7px;
+
+  &:hover {
+    background: none;
+  }
+}
+
+.song-cover {
+  position: relative;
+  overflow: hidden;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 4px 0 0 4px;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--on-cover);
+}
+
+.song-cover img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 0.2s ease-out;
+}
+
+.song-cover img.shown {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .song-cover img {
+    transition: none;
+  }
+}
+
+.cover-tone-0 {
+  background: linear-gradient(135deg, var(--cover-0), var(--control-bg));
+}
+
+.cover-tone-1 {
+  background: linear-gradient(135deg, var(--cover-1), var(--control-bg));
+}
+
+.cover-tone-2 {
+  background: linear-gradient(135deg, var(--cover-2), var(--control-bg));
+}
+
+.cover-tone-3 {
+  background: linear-gradient(135deg, var(--cover-3), var(--control-bg));
+}
+
+.cover-tone-4 {
+  background: linear-gradient(135deg, var(--cover-4), var(--control-bg));
+}
+
+.cover-tone-5 {
+  background: linear-gradient(135deg, var(--cover-5), var(--control-bg));
+}
+
+.song-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.song-title {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.song-artist {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.song-badge {
+  font-size: 12px;
+  color: var(--accent);
+  display: none;
+}
+
+.grid .song-badge {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  height: 32px;
+  top: 8px;
+  left: 8px;
+  background: var(--cover-scrim);
+  padding: 4px 12px;
+  border-radius: 3px;
+}
+
+/* The "more" menu at the end of a row. */
+.song-list .song-menu {
+  flex: none;
+  align-self: center;
+  margin-right: 8px;
+}
+
+/* ---------- Grid layout: covers on top, actions in a menu over the cover ---------- */
+.song-list.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 600px) {
+  .song-list.grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.song-list.grid li {
+  position: relative;
+}
+
+/* Inset over the cover's top-right corner (card border + padding + a gap). */
+.song-list.grid .song-menu {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  margin: 0;
+}
+
+.song-list.grid .song-open {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+}
+
+.song-list.grid .song-cover {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  font-size: 40px;
+  border-radius: 6px 6px 0 0;
+}
+
+.song-list.grid .song-text {
+  padding: 8px 4px;
+}
+
+.song-list.grid .song-title {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  white-space: normal;
+}
+
+/* ---------- Loading skeleton: the song list's layout with a sweeping shine ---------- */
+.skeleton .song-text {
+  flex: 1;
+  justify-content: center;
+}
+
+.bone {
+  position: relative;
+  overflow: hidden;
+  background: var(--control-bg);
+}
+
+.skeleton .song-title {
+  width: 60%;
+  border-radius: 4px;
+}
+
+.skeleton .song-artist {
+  width: 35%;
+  border-radius: 4px;
+}
+
+/* Only transform animates, so the shine stays on the compositor. */
+.bone::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--control-border),
+    transparent
+  );
+  transform: translateX(-100%);
+  animation: bone-shine 1.4s ease-in-out infinite;
+}
+
+@keyframes bone-shine {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bone::after {
+    animation: none;
+    opacity: 0;
+  }
+}

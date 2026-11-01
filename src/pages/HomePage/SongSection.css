@@ -1,0 +1,29 @@
+.home-section-head {
+  display: flex;
+  gap: 12px;
+  min-height: 40px;
+  align-items: center;
+  justify-content: space-between;
+  margin: 16px 0;
+}
+
+.home-section-head h2 {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.home-section-tools {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.home-placeholder {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+}
