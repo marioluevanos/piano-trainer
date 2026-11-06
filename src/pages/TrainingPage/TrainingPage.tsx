@@ -10,6 +10,7 @@ import {
   type ScoreInfo,
 } from "../../components/ScoreView/ScoreView";
 import { SongInfo } from "../../components/SongInfo/SongInfo";
+import { PracticeChip } from "../../components/PracticeChip/PracticeChip";
 import { Status } from "../../components/Status/Status";
 import { Toolbar, loopRangeLabel } from "../../components/Toolbar/Toolbar";
 import { parseTrainingView } from "../../components/Toolbar/ViewToggle";
@@ -41,6 +42,7 @@ import type {
 import { useMidiInput } from "../../midi/useMidiInput";
 import { usePlayback } from "../../midi/usePlayback";
 import { synthNoteOff, synthNoteOn } from "../../midi/synth";
+import type { PracticeTracker } from "../../practice/usePracticeTracker";
 import type { Song } from "../../songs";
 import { useLandscapeLock } from "./useLandscapeLock";
 import { useSetting, useStoredSetting } from "./useSetting";
@@ -61,6 +63,8 @@ interface TrainingPageProps {
   loading: boolean;
   /** Whether the user is signed in, to explain why a song is missing. */
   signedIn: boolean;
+  /** The practice clock, told about every note the player plays. */
+  tracker: PracticeTracker;
   onHome: () => void;
 }
 
@@ -72,6 +76,7 @@ export function TrainingPage({
   song,
   loading,
   signedIn,
+  tracker,
   onHome,
 }: TrainingPageProps) {
   // Keyed on the id: the song objects are rebuilt whenever the list updates.
@@ -134,13 +139,21 @@ export function TrainingPage({
   const playingRef = useRef(playback.playing);
   playingRef.current = playback.playing;
 
-  const handleNoteOn = useCallback((midi: number) => {
-    if (playingRef.current) return;
-    const time = performance.now();
-    setEngine((s) =>
-      engineNoteOn(s, stepsRef.current, midi, optsRef.current, time),
-    );
-  }, []);
+  // Every note the player plays counts as practice, scored or not.
+  const songId = song?.id;
+  const handleNoteOn = useCallback(
+    (midi: number) => {
+      if (songId) tracker.note(songId);
+      if (playingRef.current) return;
+      const time = performance.now();
+      setEngine((s) =>
+        engineNoteOn(s, stepsRef.current, midi, optsRef.current, time),
+      );
+    },
+    [songId, tracker],
+  );
+  // Leaving the song stops the clock; it resumes if the next note comes soon.
+  useEffect(() => tracker.stop, [tracker]);
   const handleNoteOff = useCallback((midi: number) => {
     setEngine((s) => engineNoteOff(s, midi));
   }, []);
@@ -357,6 +370,7 @@ export function TrainingPage({
         bpm={currentStep?.bpm ?? null}
         speed={speed}
         playing={playback.playing}
+        aside={<PracticeChip peek={tracker.peek} />}
       />
       {/* Hidden rather than unmounted when not shown: rendering the score is what produces the steps. */}
       <section

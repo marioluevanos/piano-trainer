@@ -11,9 +11,11 @@ import { SCAN_ACCEPT, loadScanOptions } from "../../songs/omr";
 import { downloadImported, downloadSong } from "../../songs/download";
 import { recentlyPlayed } from "../../songs/recent";
 import type { PendingScan } from "../../songs/pendingScan";
+import type { Session } from "../../practice/activity";
 import { Button } from "../../components/Button/Button";
 import { ScanDialog } from "../../components/ScanDialog/ScanDialog";
 import { SongDialog } from "../../components/SongDialog/SongDialog";
+import { ActivityCard } from "./ActivityCard";
 import { HomeHeader } from "./HomeHeader";
 import {
   LayoutToggle,
@@ -33,7 +35,11 @@ interface Props {
   loading: boolean;
   error: string | null;
   user: User | null;
+  /** Every practice session known (see practice/usePracticeLog.ts). */
+  practice: readonly Session[];
   onOpen: (id: string) => void;
+  /** Opens the practice activity page. */
+  onOpenActivity: () => void;
   /** Saves a new song. Throws (with a message for the user) if that fails. */
   onAdd: (song: ImportedSong, details: SongDetails) => Promise<void>;
   /** Changes a song's title, artist or cover. Throws if that fails. */
@@ -74,7 +80,9 @@ export function HomePage({
   loading,
   error,
   user,
+  practice,
   onOpen,
+  onOpenActivity,
   onAdd,
   onEdit,
   onRemove,
@@ -196,6 +204,13 @@ export function HomePage({
             Loading songs…
           </p>
         )}
+        {user && (
+          <ActivityCard
+            sessions={practice}
+            songs={songs}
+            onOpen={onOpenActivity}
+          />
+        )}
         {showRecent && (
           <SongSection
             title="Recently played"
@@ -203,6 +218,7 @@ export function HomePage({
             songs={recent}
             lastSongId={null}
             {...listProps}
+            layout="grid"
           />
         )}
         <SongSection

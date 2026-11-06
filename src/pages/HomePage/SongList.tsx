@@ -7,6 +7,7 @@ import { Button } from "../../components/Button/Button";
 import { SongMenu } from "../../components/SongMenu/SongMenu";
 import type { Layout } from "./LayoutToggle";
 import "./SongList.css";
+import { cn } from "../../components/utils";
 
 /** Placeholder colors (cover-tone-N in SongList.css) for songs without a cover. */
 const TONES = 6;
@@ -100,7 +101,13 @@ export function SongList({
   return (
     <ul className={`song-list ${layout}`}>
       {songs.map((s) => (
-        <li key={s.id} className={s.id === lastSongId ? "last" : undefined}>
+        <li
+          key={s.id}
+          className={
+            cn()
+            // s.id === lastSongId ? "last" : undefined
+          }
+        >
           <Button
             variant="ghost"
             className="song-open"
@@ -110,9 +117,9 @@ export function SongList({
             <span className="song-text">
               <span className="song-title">{s.title}</span>
               {s.artist && <span className="song-artist">{s.artist}</span>}
-              {s.id === lastSongId && (
+              {/* {s.id === lastSongId && (
                 <span className="song-badge">Last played</span>
-              )}
+              )} */}
             </span>
           </Button>
           {canEditSong(user, s) && (

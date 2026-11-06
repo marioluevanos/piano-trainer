@@ -23,7 +23,7 @@
 }
 
 .home-placeholder {
-  margin: 0;
+  margin: 0 0 25vh;
   color: var(--muted);
   font-size: 14px;
 }

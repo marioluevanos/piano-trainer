@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { HOME, parseRoute, routeUrl, type Route } from "./route";
+import { ACTIVITY, HOME, parseRoute, routeUrl, type Route } from "./route";
 
 /** Marks history entries pushed by the app, which have the home page behind them. */
 type EntryState = { fromHome: true } | null;
@@ -8,8 +8,9 @@ const currentRoute = () => parseRoute(location.search);
 
 /**
  * The current page, kept in sync with the URL and browser history. Opening a
- * song pushes a history entry, so the browser (or Android) back button returns
- * to the song list, and a reload or shared link lands on the same page.
+ * song or the activity page pushes a history entry, so the browser (or
+ * Android) back button returns to the song list, and a reload or shared link
+ * lands on the same page.
  */
 export function useNavigation() {
   const [route, setRoute] = useState<Route>(currentRoute);
@@ -20,12 +21,19 @@ export function useNavigation() {
     return () => window.removeEventListener("popstate", onPopState);
   }, []);
 
-  const openSong = useCallback((songId: string) => {
-    const next: Route = { page: "training", songId };
+  /** Goes to a page, with the home page behind it in the history. */
+  const push = useCallback((next: Route) => {
     const state: EntryState = { fromHome: true };
     history.pushState(state, "", routeUrl(next));
     setRoute(next);
   }, []);
+
+  const openSong = useCallback(
+    (songId: string) => push({ page: "training", songId }),
+    [push],
+  );
+
+  const openActivity = useCallback(() => push(ACTIVITY), [push]);
 
   const goHome = useCallback(() => {
     // A page opened from a link or bookmark has no home entry to go back to,
@@ -38,5 +46,5 @@ export function useNavigation() {
     }
   }, []);
 
-  return { route, openSong, goHome };
+  return { route, openSong, openActivity, goHome };
 }

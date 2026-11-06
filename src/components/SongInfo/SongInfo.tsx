@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Button } from "../Button/Button";
 import { InfoIcon } from "../Icons/InfoIcon";
 import "./SongInfo.css";
@@ -14,6 +14,8 @@ interface Props {
   speed?: number;
   /** Whether the song is playing back, to show the speed it plays at. */
   playing?: boolean;
+  /** Shown at the end of the row, such as the practice clock. */
+  aside?: ReactNode;
 }
 
 /**
@@ -26,6 +28,7 @@ export function SongInfo({
   bpm = null,
   speed = 1,
   playing = false,
+  aside,
 }: Props) {
   const infoRef = useRef<HTMLDivElement>(null);
   const [infoOpen, setInfoOpen] = useState(false);
@@ -48,7 +51,7 @@ export function SongInfo({
   }, [infoOpen]);
 
   const speedPercent = Math.round(speed * 100);
-  if (credits.length === 0 && bpm === null) return null;
+  if (credits.length === 0 && bpm === null && !aside) return null;
 
   return (
     <div
@@ -83,6 +86,7 @@ export function SongInfo({
             playing at {speedPercent}%
           </span>
         )}
+        {aside}
       </div>
       {infoOpen && (
         <div className="score-info-panel" role="dialog" aria-label="Song info">

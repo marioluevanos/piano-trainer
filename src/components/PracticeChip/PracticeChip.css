@@ -1,0 +1,54 @@
+/* "● 12:34" beside the tempo, in the score's palette like the speed label. */
+.practice-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 3px 10px 3px 8px;
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--score-muted);
+  background: var(--control-bg);
+  border-radius: 12px;
+  transition: color 300ms ease;
+}
+
+.practice-chip.active {
+  color: var(--score-accent);
+  background: color-mix(in srgb, var(--score-accent) 12%, transparent);
+}
+
+.practice-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.5;
+}
+
+.practice-chip.active .practice-dot {
+  opacity: 1;
+  animation: practice-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes practice-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(0.7);
+    opacity: 0.6;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .practice-chip.active .practice-dot {
+    animation: none;
+  }
+  .practice-chip {
+    transition: none;
+  }
+}

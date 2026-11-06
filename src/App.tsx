@@ -13,10 +13,17 @@ import {
   withRecentSong,
 } from "./songs/recent";
 import { useNavigation } from "./navigation/useNavigation";
+import { ActivityPage } from "./pages/ActivityPage/ActivityPage";
+import { usePracticeLog } from "./practice/usePracticeLog";
+import { usePracticeTracker } from "./practice/usePracticeTracker";
 
 export default function App() {
   const library = useSongLibrary();
-  const { route, openSong, goHome } = useNavigation();
+  const { route, openSong, openActivity, goHome } = useNavigation();
+
+  // Practice time, counted from the notes played and shared by every page.
+  const practice = usePracticeLog(library.user);
+  const tracker = usePracticeTracker(practice.record);
 
   // The songs trained on, newest first; the one being trained on leads.
   const [recentIds, setRecentIds] = useState(loadRecentSongIds);
@@ -46,7 +53,9 @@ export default function App() {
           loading={library.loading}
           error={library.error}
           user={library.user}
+          practice={practice.sessions}
           onOpen={openSong}
+          onOpenActivity={openActivity}
           onAdd={onAddSong}
           onEdit={library.editSong}
           onRemove={library.removeSong}
@@ -62,6 +71,15 @@ export default function App() {
           song={library.songs.find((s) => s.id === route.songId)}
           loading={library.loading}
           signedIn={library.user !== null}
+          tracker={tracker}
+          onHome={goHome}
+        />
+      );
+    case "activity":
+      return (
+        <ActivityPage
+          sessions={practice.sessions}
+          songs={library.songs}
           onHome={goHome}
         />
       );

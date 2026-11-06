@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { HOME, parseRoute, routeUrl } from "./route.ts";
+import { ACTIVITY, HOME, parseRoute, routeUrl } from "./route.ts";
 
 test("an empty query is the home page", () => {
   assert.deepEqual(parseRoute(""), HOME);
@@ -21,4 +21,14 @@ test("routes round-trip through their URL", () => {
     assert.deepEqual(parseRoute(routeUrl(route)), route);
   }
   assert.equal(routeUrl(HOME), "./");
+});
+
+test("the activity query is the practice activity page", () => {
+  assert.deepEqual(parseRoute("?activity"), ACTIVITY);
+  assert.deepEqual(parseRoute(routeUrl(ACTIVITY)), ACTIVITY);
+  // A song wins over a stray activity flag.
+  assert.deepEqual(parseRoute("?activity&song=x"), {
+    page: "training",
+    songId: "x",
+  });
 });

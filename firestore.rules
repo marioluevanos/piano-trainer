@@ -84,5 +84,14 @@ service cloud.firestore {
       allow read, delete: if signedInAs(uid);
       allow create, update: if signedInAs(uid) && validCover(request.resource.data);
     }
+    // Practice sessions, one document per local day holding that day's
+    // sessions keyed by start time (see src/practice/store.ts). Private to
+    // the user, written with merges as a session grows.
+    match /pianoTrainerUsers/{uid}/practice/{day} {
+      allow read, delete: if signedInAs(uid);
+      allow create, update: if signedInAs(uid)
+        && request.resource.data.keys().hasOnly(["sessions"])
+        && request.resource.data.sessions is map;
+    }
   }
 }
