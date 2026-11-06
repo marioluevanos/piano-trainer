@@ -103,10 +103,7 @@ export function SongList({
       {songs.map((s) => (
         <li
           key={s.id}
-          className={
-            cn()
-            // s.id === lastSongId ? "last" : undefined
-          }
+          className={cn(s.id === lastSongId ? "is-recent" : undefined)}
         >
           <Button
             variant="ghost"
