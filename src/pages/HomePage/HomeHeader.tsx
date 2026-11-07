@@ -1,5 +1,6 @@
 import type { User } from "firebase/auth";
 import { Button } from "../../components/Button/Button";
+import { Menu } from "../../components/Menu/Menu";
 import "./HomeHeader.css";
 
 interface Props {
@@ -8,10 +9,19 @@ interface Props {
   loading: boolean;
   onSignIn: () => void;
   onSignOut: () => void;
+  /** Opens the practice activity page. */
+  onOpenActivity: () => void;
 }
 
 /** The top bar: the logo and the account. */
-export function HomeHeader({ user, loading, onSignIn, onSignOut }: Props) {
+export function HomeHeader({
+  user,
+  loading,
+  onSignIn,
+  onSignOut,
+  onOpenActivity,
+}: Props) {
+  const name = user?.displayName?.trim() || user?.email || "";
   return (
     <header className="home-header">
       <h1 className="home-logo">
@@ -21,21 +31,39 @@ export function HomeHeader({ user, loading, onSignIn, onSignOut }: Props) {
       {!loading && (
         <div className="home-account">
           {user ? (
-            <>
-              <span className="account">{user.displayName ?? user.email}</span>
-              <Button
-                onClick={onSignOut}
-                title="Your songs stay in your account"
-              >
-                Sign out
-              </Button>
-            </>
+            <Menu
+              label="Account"
+              button={{
+                variant: "primary",
+                icon: true,
+                round: true,
+                "aria-label": `Account: ${name}`,
+                title: name,
+                children: [...name][0]?.toUpperCase() ?? "?",
+              }}
+              heading={
+                <>
+                  <span className="account-name">{name}</span>
+                  {user.email && user.email !== name && (
+                    <span className="account-email">{user.email}</span>
+                  )}
+                </>
+              }
+              items={[
+                { label: "Practice activity", onSelect: onOpenActivity },
+                {
+                  label: "Sign out",
+                  onSelect: onSignOut,
+                  title: "Your songs stay in your account",
+                },
+              ]}
+            />
           ) : (
             <Button
               onClick={onSignIn}
               title="Keep the songs you load in your Google account, on every device"
             >
-              Sign in to sync songs
+              Sign in
             </Button>
           )}
         </div>

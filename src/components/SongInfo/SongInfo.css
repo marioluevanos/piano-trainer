@@ -39,7 +39,7 @@
    the info button so it reads over whatever the score prints up here. */
 .score-tempo {
   padding: 1px 8px;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: 16px;
   font-weight: 700;
   color: var(--score-text);

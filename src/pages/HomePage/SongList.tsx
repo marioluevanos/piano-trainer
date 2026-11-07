@@ -5,9 +5,11 @@ import { useCoverUrl } from "../../songs/cover";
 import { canEditSong } from "../../songs/library";
 import { Button } from "../../components/Button/Button";
 import { SongMenu } from "../../components/SongMenu/SongMenu";
-import type { Layout } from "./LayoutToggle";
 import "./SongList.css";
 import { cn } from "../../components/utils";
+
+/** How a song list is drawn: rows, or a grid of covers. */
+export type Layout = "list" | "grid";
 
 /** Placeholder colors (cover-tone-N in SongList.css) for songs without a cover. */
 const TONES = 6;
@@ -49,7 +51,7 @@ function SongCover({ song }: { song: Song }) {
   );
 }
 
-/** Stand-ins for a song list while it loads, in the chosen layout. */
+/** Stand-ins for a song list while it loads, in its layout. */
 export function SongListSkeleton({
   layout,
   count,

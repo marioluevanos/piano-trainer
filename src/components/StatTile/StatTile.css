@@ -1,7 +1,7 @@
 .stat-tile {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
   min-width: 0;
 }
 
@@ -11,17 +11,20 @@
   letter-spacing: 0.02em;
   color: var(--muted);
   white-space: nowrap;
+  display: block;
+  margin-bottom: 2px;
 }
 
 .stat-value {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 2px;
   font-size: 20px;
   font-weight: 600;
   line-height: 1.2;
   color: var(--text);
   white-space: nowrap;
+  /* font-family: var(--font-serif) */
 }
 
 .stat-tile.hero .stat-value {

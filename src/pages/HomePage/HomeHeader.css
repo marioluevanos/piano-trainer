@@ -32,9 +32,19 @@
   font-size: 14px;
 }
 
-.account {
-  color: var(--muted);
+.account-name,
+.account-email {
+  display: block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.account-name {
+  font-weight: 600;
+}
+
+.account-email {
+  color: var(--muted);
+  font-size: 13px;
 }

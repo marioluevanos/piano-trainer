@@ -58,6 +58,8 @@
     Roboto,
     sans-serif;
   color-scheme: dark;
+
+  --font-serif: Georgia, "Times New Roman", serif;
 }
 
 @media (max-width: 640px) {

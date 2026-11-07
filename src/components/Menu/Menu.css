@@ -1,0 +1,41 @@
+/* Where the menu sits is up to its parent. */
+.menu {
+  position: relative;
+  z-index: 1;
+}
+
+.menu.open {
+  z-index: 3;
+}
+
+.menu .avatar {
+  font-family: var(--font-serif);
+}
+
+.menu-panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  width: max-content;
+  min-width: 128px;
+  max-width: min(280px, calc(100vw - 32px));
+  padding: 4px;
+  background: var(--panel);
+  border: 1px solid var(--control-border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px var(--shadow);
+}
+
+.menu-panel .button {
+  justify-content: flex-start;
+  white-space: nowrap;
+}
+
+.menu-heading {
+  padding: 8px 12px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+}

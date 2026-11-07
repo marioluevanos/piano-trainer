@@ -17,12 +17,6 @@ import { ScanDialog } from "../../components/ScanDialog/ScanDialog";
 import { SongDialog } from "../../components/SongDialog/SongDialog";
 import { ActivityCard } from "./ActivityCard";
 import { HomeHeader } from "./HomeHeader";
-import {
-  LayoutToggle,
-  loadLayout,
-  saveLayout,
-  type Layout,
-} from "./LayoutToggle";
 import { SongSection } from "./SongSection";
 import { PendingScanNotice, ScanStatus } from "./ScanStatus";
 import { useScan } from "./useScan";
@@ -96,11 +90,6 @@ export function HomePage({
   const [editingId, setEditingId] = useState<string | null>(null);
   const editing = songs.find((s) => s.id === editingId);
   const [pickError, setPickError] = useState<string | null>(null);
-  const [layout, setLayout] = useState(loadLayout);
-  const chooseLayout = (next: Layout) => {
-    setLayout(next);
-    saveLayout(next);
-  };
 
   const scan = useScan(user, { onScanned: setAdding, onError: setPickError });
   const { scanning, pending } = scan;
@@ -153,7 +142,6 @@ export function HomePage({
 
   /** What every song list needs besides its songs. */
   const listProps = {
-    layout,
     user,
     onOpen,
     onEdit: (s: Song) => setEditingId(s.id),
@@ -161,10 +149,9 @@ export function HomePage({
     onRemove: remove,
   };
 
-  /** The layout toggle and Upload button, in the head of the first section. */
-  const tools = (
+  /** The Upload button, in the head of Your songs. */
+  const tools = user && (
     <>
-      <LayoutToggle layout={layout} onChange={chooseLayout} />
       {/* {canScan(user) && (
         <Button
           onClick={() => scanInputRef.current?.click()}
@@ -174,15 +161,13 @@ export function HomePage({
           Scan
         </Button>
       )} */}
-      {user && (
-        <Button
-          variant="primary"
-          onClick={() => fileInputRef.current?.click()}
-          title="Load a .musicxml, .xml or .mxl file"
-        >
-          Upload
-        </Button>
-      )}
+      <Button
+        variant="primary"
+        onClick={() => fileInputRef.current?.click()}
+        title="Load a .musicxml, .xml or .mxl file"
+      >
+        Upload
+      </Button>
     </>
   );
 
@@ -193,6 +178,7 @@ export function HomePage({
         loading={loading}
         onSignIn={onSignIn}
         onSignOut={onSignOut}
+        onOpenActivity={onOpenActivity}
       />
 
       <main className="home-body">
@@ -214,16 +200,15 @@ export function HomePage({
         {showRecent && (
           <SongSection
             title="Recently played"
-            tools={tools}
+            layout="grid"
             songs={recent}
             lastSongId={null}
             {...listProps}
-            layout="grid"
           />
         )}
         <SongSection
           title="Library"
-          tools={showRecent ? undefined : tools}
+          layout="list"
           loading={loading}
           skeletonCount={6}
           songs={shared}
@@ -233,6 +218,8 @@ export function HomePage({
         />
         <SongSection
           title="Your songs"
+          layout="list"
+          tools={tools}
           loading={loading}
           skeletonCount={2}
           songs={own}
